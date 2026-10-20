@@ -1,3 +1,8 @@
+// GeneralUser GS by S. Christian Collins; compressed copy from SpessaSynth.
+// Pinned upstream revision keeps the default asset stable.
+export const DEFAULT_SOUNDFONT_URL = "https://cdn.jsdelivr.net/gh/spessasus/SpessaSynth@5bef3d230d63e73946d4c77342eef953d6542fee/soundfonts/GeneralUserGS.sf3";
+export const DEFAULT_SOUNDFONT_NAME = "GeneralUser GS";
+
 export const SOUNDFONT_EXTENSIONS = [".sf2", ".sf3", ".dls", ".sfogg", ".sfont"];
 
 export function isSoundFontFile(file) {

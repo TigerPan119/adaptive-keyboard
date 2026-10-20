@@ -1,5 +1,7 @@
 import { noteName, pitchClass } from "../music.js";
 import {
+  DEFAULT_SOUNDFONT_NAME,
+  DEFAULT_SOUNDFONT_URL,
   firstSoundFontFile,
   hasDraggedFile,
   presetLabel,
@@ -59,8 +61,6 @@ import {
   normalizeCameraQuad,
 } from "./camera-keyboard.js";
 
-const DEFAULT_SOUNDFONT_URL = "./assets/undertale.sf2";
-const DEFAULT_SOUNDFONT_NAME = "undertale.sf2";
 const SPESSA_MODULE_URL = "https://cdn.jsdelivr.net/npm/spessasynth_lib@4.3.8/+esm";
 const SPESSA_WORKLET_URL = "https://cdn.jsdelivr.net/npm/spessasynth_lib@4.3.8/dist/spessasynth_processor.min.js";
 const AUDIO_CHANNEL = 0;
@@ -594,7 +594,7 @@ async function loadDefaultSoundFont() {
     const response = await fetch(DEFAULT_SOUNDFONT_URL);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const buffer = await response.arrayBuffer();
-    await installSoundFont(buffer, DEFAULT_SOUNDFONT_NAME, "chord-default-undertale");
+    await installSoundFont(buffer, DEFAULT_SOUNDFONT_NAME, "chord-default-generaluser");
   } catch (error) {
     console.error(error);
     setSoundFontStatus(state.soundFontEnabled ? `Default SoundFont failed: ${error.message}. Drop a local file to retry.` : "SoundFont audio is off.", state.soundFontEnabled ? "error" : "idle");

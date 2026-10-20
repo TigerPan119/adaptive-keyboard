@@ -100,8 +100,7 @@ export const state = {
   diagnosticsPaused: false,
 };
 
-export const DEFAULT_SOUNDFONT_URL = "./assets/undertale.sf2";
-export const DEFAULT_SOUNDFONT_NAME = "undertale.sf2";
+export { DEFAULT_SOUNDFONT_NAME, DEFAULT_SOUNDFONT_URL } from "./soundfont-player.js";
 export const SPESSA_MODULE_URL = "https://cdn.jsdelivr.net/npm/spessasynth_lib@4.3.8/+esm";
 export const SPESSA_WORKLET_URL = "https://cdn.jsdelivr.net/npm/spessasynth_lib@4.3.8/dist/spessasynth_processor.min.js";
 export const UI_YELLOW = "#ffd52e";

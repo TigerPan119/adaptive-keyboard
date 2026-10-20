@@ -121,7 +121,7 @@ export async function loadDefaultSoundFont() {
     const response = await fetch(DEFAULT_SOUNDFONT_URL);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const buffer = await response.arrayBuffer();
-    await installSoundFontBuffer(buffer, DEFAULT_SOUNDFONT_NAME, "default-undertale");
+    await installSoundFontBuffer(buffer, DEFAULT_SOUNDFONT_NAME, "default-generaluser");
   } catch (error) {
     console.error(error);
     el.soundFontStatus.textContent = `Default SoundFont failed to load: ${error.message}. You can still upload one manually.`;

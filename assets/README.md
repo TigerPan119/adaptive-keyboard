@@ -1,4 +1,11 @@
-# Local SoundFont
+# SoundFonts
 
-Place your local `undertale.sf2` here for default playback, or select a SoundFont
-file in the app. The original 154 MB file is excluded from Git.
+Both pages use an online GeneralUser GS default, configured in
+`src/js/soundfont-player.js`. No local SoundFont file is required.
+
+The compressed file is approximately 8.4 MB and is loaded from a pinned
+SpessaSynth revision through jsDelivr. See `GENERALUSER-LICENSE.txt` for
+attribution and the license embedded in the source bank.
+
+You can select a different local SoundFont in either page. The original
+154 MB `undertale.sf2` is excluded from Git.
