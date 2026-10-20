@@ -1,0 +1,179 @@
+:root {
+  color-scheme: dark;
+  --bg: #1c1c1e;
+  --surface: rgba(44, 44, 46, 0.72);
+  --surface-strong: rgba(58, 58, 60, 0.74);
+  --surface-soft: rgba(255, 255, 255, 0.07);
+  --text: #f5f5f7;
+  --muted: rgba(235, 235, 245, 0.62);
+  --subtle: rgba(235, 235, 245, 0.42);
+  --line: rgba(255, 255, 255, 0.13);
+  --blue: #0a84ff;
+  --blue-soft: rgba(10, 132, 255, 0.22);
+  --red: #ff453a;
+  --red-soft: rgba(255, 69, 58, 0.22);
+  --green: #30d158;
+  --orange: #ff9f0a;
+  --yellow: #ffd52e;
+  --notes-yellow: #ffd52e;
+  --accent-rgb: 255, 213, 46;
+  --accent-dark: #e1b900;
+  --accent-contrast: #111113;
+  --shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
+  font-family:
+    -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue",
+    "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button {
+  min-height: 38px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  background: rgba(118, 118, 128, 0.28);
+  color: var(--text);
+  cursor: pointer;
+  font-weight: 590;
+  padding: 0 18px;
+  transition:
+    background 140ms ease,
+    border-color 140ms ease,
+    transform 140ms ease;
+}
+
+button:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(118, 118, 128, 0.38);
+}
+
+button:disabled {
+  cursor: default;
+  opacity: 0.48;
+  transform: none;
+}
+
+button:disabled:hover {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(118, 118, 128, 0.28);
+}
+
+button:active {
+  transform: scale(0.985);
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 3px solid rgba(10, 132, 255, 0.36);
+  outline-offset: 2px;
+}
+
+button.active {
+  border-color: rgba(var(--accent-rgb), 0.72);
+  background: var(--notes-yellow);
+  color: var(--accent-contrast);
+}
+
+input,
+select {
+  width: 100%;
+  min-height: 36px;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 999px;
+  background: rgba(118, 118, 128, 0.18);
+  color: var(--text);
+  padding: 0 14px;
+}
+
+select {
+  appearance: none;
+  padding-right: 38px;
+  background-image: url("data:image/svg+xml,%3Csvg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='rgba(245,245,247,0.72)' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 16px center;
+  background-size: 14px 14px;
+}
+
+select option {
+  background: #2c2c2e;
+  color: var(--text);
+}
+
+input[type="file"] {
+  min-height: auto;
+  border: 0;
+  background: transparent;
+  padding: 0;
+}
+
+.visually-hidden-file {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+input[type="file"]::file-selector-button {
+  min-height: 34px;
+  margin-right: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  background: rgba(118, 118, 128, 0.28);
+  color: var(--text);
+  font: inherit;
+  font-weight: 590;
+  padding: 0 12px;
+}
+
+input[type="range"] {
+  appearance: none;
+  accent-color: var(--notes-yellow);
+  --range-progress: 0%;
+  min-height: 22px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+}
+
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 5px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    var(--notes-yellow) 0%,
+    var(--notes-yellow) var(--range-progress),
+    rgba(118, 118, 128, 0.34) var(--range-progress),
+    rgba(118, 118, 128, 0.34) 100%
+  );
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  width: 18px;
+  height: 18px;
+  margin-top: -6.5px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.32);
+  appearance: none;
+}

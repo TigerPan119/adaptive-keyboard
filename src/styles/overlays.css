@@ -1,0 +1,171 @@
+.help-window {
+  position: fixed;
+  left: var(--help-left, 18px);
+  bottom: 18px;
+  z-index: 20;
+  width: min(340px, calc(100vw - 36px));
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 24px;
+  background: rgba(44, 44, 46, 0.78);
+  box-shadow: var(--shadow);
+  padding: 13px 15px;
+  backdrop-filter: blur(26px);
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  transform-origin: bottom left;
+  transition:
+    opacity 160ms ease,
+    transform 160ms ease,
+    visibility 160ms ease;
+  visibility: visible;
+}
+
+.help-window.is-hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(6px) scale(0.98);
+  visibility: hidden;
+}
+
+.help-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 5px;
+}
+
+.help-header span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--yellow);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.help-header span svg {
+  width: 13px;
+  height: 13px;
+  stroke-width: 2;
+}
+
+.help-close-button,
+.help-toggle-button {
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+}
+
+.help-close-button {
+  width: 22px;
+  min-height: 22px;
+  border: 0;
+  background: rgba(118, 118, 128, 0.18);
+  padding: 0;
+}
+
+.help-close-button svg {
+  width: 13px;
+  height: 13px;
+}
+
+.help-toggle-button {
+  position: fixed;
+  left: var(--help-left, 18px);
+  bottom: 18px;
+  z-index: 20;
+  width: 48px;
+  min-height: 48px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(44, 44, 46, 0.78);
+  box-shadow: var(--shadow);
+  padding: 0;
+  backdrop-filter: blur(26px);
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  transform-origin: center;
+  transition:
+    opacity 160ms ease,
+    transform 160ms ease,
+    visibility 160ms ease;
+  visibility: visible;
+}
+
+.help-toggle-button.is-hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(4px) scale(0.9);
+  visibility: hidden;
+}
+
+.help-toggle-button svg {
+  width: 22px;
+  height: 22px;
+  color: var(--yellow);
+}
+
+.help-window strong {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 14px;
+}
+
+.help-window p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.drop-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.42);
+  opacity: 1;
+  pointer-events: none;
+  transition:
+    opacity 160ms ease,
+    visibility 160ms ease;
+  visibility: visible;
+}
+
+.drop-overlay[hidden] {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.drop-overlay > div {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  border: 1px solid rgba(var(--accent-rgb), 0.42);
+  border-radius: 28px;
+  background: rgba(44, 44, 46, 0.82);
+  box-shadow: var(--shadow);
+  color: var(--text);
+  padding: 24px 28px;
+  backdrop-filter: blur(28px);
+}
+
+.drop-overlay svg {
+  width: 36px;
+  height: 36px;
+  color: var(--yellow);
+  stroke-width: 1.7;
+}
+
+.drop-overlay strong {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.drop-overlay span {
+  color: var(--muted);
+  font-size: 13px;
+}

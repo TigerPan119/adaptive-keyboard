@@ -1,0 +1,346 @@
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  width: min(1440px, 100%);
+  height: 100vh;
+  margin: 0 auto;
+  padding: 28px;
+  overflow: hidden;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 20px;
+}
+
+.sr-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+h1,
+h2 {
+  margin: 0;
+  letter-spacing: 0;
+}
+
+h1 {
+  font-size: clamp(30px, 3.6vw, 46px);
+  font-weight: 700;
+  line-height: 0.98;
+}
+
+h2 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 650;
+  color: rgba(245, 245, 247, 0.82);
+}
+
+h2 svg {
+  width: 15px;
+  height: 15px;
+  color: var(--yellow);
+  stroke-width: 1.9;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0 11px;
+  color: var(--muted);
+  background: rgba(118, 118, 128, 0.18);
+  font-size: 12px;
+  font-weight: 560;
+  white-space: nowrap;
+  backdrop-filter: blur(18px);
+}
+
+.pill.ok {
+  border-color: rgba(var(--accent-rgb), 0.34);
+  color: var(--yellow);
+}
+
+.pill.warn {
+  border-color: rgba(255, 159, 10, 0.36);
+  color: var(--orange);
+}
+
+.pill.bad {
+  border-color: rgba(255, 69, 58, 0.34);
+  color: var(--red);
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  min-height: 0;
+  flex: 1;
+  gap: 20px;
+}
+
+.stage-panel,
+.control-scroll-shell,
+.control-panel {
+  min-width: 0;
+  min-height: 0;
+}
+
+.stage-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.video-frame {
+  position: relative;
+  overflow: hidden;
+  min-height: 420px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 26px;
+  background: #050506;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.22);
+  aspect-ratio: 16 / 9;
+  max-height: calc(100vh - 180px);
+}
+
+#video,
+#overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+#video {
+  background: #050506;
+}
+
+.video-frame.mirrored #video {
+  transform: scaleX(-1);
+}
+
+#overlay {
+  z-index: 2;
+}
+
+.calibration-prompt {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  z-index: 4;
+  display: flex;
+  max-width: min(620px, calc(100% - 28px));
+  transform: translateX(-50%) translateY(0);
+  align-items: center;
+  gap: 10px;
+  border: 1px solid rgba(var(--accent-rgb), 0.42);
+  border-radius: 18px;
+  background: rgba(43, 38, 18, 0.82);
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.24);
+  color: var(--yellow);
+  opacity: 1;
+  padding: 9px 12px;
+  backdrop-filter: blur(10px);
+  transition:
+    opacity 180ms ease,
+    transform 180ms ease,
+    visibility 180ms ease,
+    border-color 180ms ease,
+    background 180ms ease,
+    color 180ms ease;
+  visibility: visible;
+}
+
+.calibration-prompt[hidden] {
+  transform: translateX(-50%) translateY(-6px);
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.calibration-prompt.success {
+  border-color: rgba(48, 209, 88, 0.45);
+  background: rgba(18, 43, 26, 0.84);
+  color: var(--green);
+}
+
+.calibration-prompt strong,
+.calibration-prompt span {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.calibration-prompt strong {
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.calibration-prompt span {
+  color: rgba(255, 245, 196, 0.92);
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+.calibration-prompt.success span {
+  color: rgba(218, 255, 226, 0.88);
+}
+
+.empty-state {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-align: center;
+  color: var(--muted);
+  background: rgba(5, 5, 6, 0.72);
+}
+
+.empty-state svg {
+  width: 42px;
+  height: 42px;
+  margin-bottom: 4px;
+  color: rgba(245, 245, 247, 0.86);
+  stroke-width: 1.6;
+}
+
+.empty-state strong {
+  color: var(--text);
+  font-size: 18px;
+}
+
+.empty-start-button {
+  margin-top: 16px;
+  min-width: 168px;
+  border: 0;
+  border-radius: 999px;
+  padding: 11px 18px;
+  color: #111113;
+  background: var(--notes-yellow);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.26);
+}
+
+.empty-start-button:hover {
+  background: var(--yellow);
+  transform: translateY(-1px);
+}
+
+.empty-start-button:disabled:hover {
+  background: var(--notes-yellow);
+  transform: none;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 14px 4px 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.swatch {
+  width: 16px;
+  height: 16px;
+  border-radius: 5px;
+}
+
+.blue {
+  background: var(--blue-soft);
+  border: 1px solid var(--blue);
+}
+
+.red {
+  background: var(--red-soft);
+  border: 1px solid var(--red);
+}
+
+.line-swatch {
+  width: 22px;
+  height: 2px;
+  background: var(--yellow);
+}
+
+.control-scroll-shell {
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.control-scroll-shell::before,
+.control-scroll-shell::after {
+  position: absolute;
+  right: 0;
+  left: 0;
+  z-index: 4;
+  height: 42px;
+  content: "";
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 160ms ease;
+}
+
+.control-scroll-shell::before {
+  top: 0;
+  background: linear-gradient(180deg, var(--bg), rgba(28, 28, 30, 0));
+}
+
+.control-scroll-shell::after {
+  bottom: 0;
+  background: linear-gradient(0deg, var(--bg), rgba(28, 28, 30, 0));
+}
+
+.control-scroll-shell.can-scroll-up::before,
+.control-scroll-shell.can-scroll-down::after {
+  opacity: 1;
+}
+
+.control-panel {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 4px;
+  scrollbar-color: rgba(235, 235, 245, 0.34) transparent;
+  scrollbar-width: thin;
+}
+
+.control-panel::-webkit-scrollbar {
+  width: 8px;
+}
+
+.control-panel::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.control-panel::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: rgba(235, 235, 245, 0.28);
+  background-clip: content-box;
+}

@@ -1,0 +1,85 @@
+@media (max-width: 980px) {
+  body {
+    height: auto;
+    min-height: 100vh;
+    overflow: auto;
+  }
+
+  .app-shell {
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+  }
+
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .control-panel {
+    overflow: visible;
+    padding-right: 0;
+  }
+
+  .control-scroll-shell {
+    overflow: visible;
+  }
+
+  .control-scroll-shell::before,
+  .control-scroll-shell::after {
+    display: none;
+  }
+
+  .video-frame {
+    max-height: none;
+  }
+
+  .topbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .setup-progress {
+    width: 100%;
+  }
+
+  .app-mode-nav {
+    align-self: flex-start;
+  }
+
+  .top-setup-guide {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    row-gap: 4px;
+  }
+
+  .setup-guide li:nth-child(odd)::before {
+    display: none;
+  }
+}
+
+@media (max-width: 560px) {
+  .app-shell {
+    padding: 14px;
+  }
+
+  .button-row,
+  .field-grid,
+  .readout-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .top-setup-guide {
+    grid-template-columns: 1fr;
+  }
+
+  .setup-guide li::before {
+    display: none;
+  }
+
+  .readout.wide {
+    grid-column: auto;
+  }
+
+  .midi-learn-button {
+    min-height: 44px;
+  }
+}

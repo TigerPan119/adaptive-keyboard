@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Adaptive Keyboard</title>
+    <link rel="stylesheet" href="./src/styles/tokens.css" />
+    <link rel="stylesheet" href="./src/styles/layout.css" />
+    <link rel="stylesheet" href="./src/styles/components.css" />
+    <link rel="stylesheet" href="./src/styles/overlays.css" />
+    <link rel="stylesheet" href="./src/styles/responsive.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <h1 data-help-title="About Adaptive Keyboard" data-help="Adaptive Keyboard uses camera-based hand tracking to move a MIDI split point dynamically, so each hand can keep its own sound even when it crosses into the other side of the keyboard.">Adaptive Keyboard</h1>
+        </div>
+        <nav class="app-mode-nav" aria-label="Application views">
+          <a class="active" href="./index.html" aria-current="page"><i data-lucide="scan-line" aria-hidden="true"></i>Hand Split</a>
+          <a href="./chord-theory.html"><i data-lucide="music" aria-hidden="true"></i>Chord Theory</a>
+        </nav>
+        <nav class="setup-progress" aria-label="Setup progress">
+          <div class="setup-progress-title">
+            <span>Setup</span>
+            <strong id="setupProgressSummary">Start camera</strong>
+          </div>
+          <ol class="setup-guide top-setup-guide">
+            <li id="cameraStep" class="current" data-help-title="Step 1: Camera" data-help="Start the camera so Adaptive Keyboard can see your hands and the full keyboard before calibration.">
+              <span class="step-index">1</span>
+              <span class="step-copy">
+                <strong>Camera</strong>
+                <small class="step-state">Now</small>
+              </span>
+            </li>
+            <li id="keyboardStep" data-help-title="Step 2: Calibrate" data-help="Click the two visible ends of the keyboard in the camera view so hand positions can be mapped to real notes.">
+              <span class="step-index">2</span>
+              <span class="step-copy">
+                <strong>Calibrate</strong>
+                <small class="step-state">Next</small>
+              </span>
+            </li>
+            <li id="midiStep" data-help-title="Step 3: MIDI" data-help="Connect and select a MIDI input. Incoming notes will be routed to the left or right sound based on the dynamic split.">
+              <span class="step-index">3</span>
+              <span class="step-copy">
+                <strong>MIDI</strong>
+                <small class="step-state">Pending</small>
+              </span>
+            </li>
+            <li id="soundStep" data-help-title="Step 4: Sound" data-help="Load a SoundFont and choose the left-hand and right-hand presets used for browser playback.">
+              <span class="step-index">4</span>
+              <span class="step-copy">
+                <strong>Sound</strong>
+                <small class="step-state">Pending</small>
+              </span>
+            </li>
+          </ol>
+        </nav>
+        <div class="sr-status" aria-live="polite">
+          <span id="cameraStatus">Camera idle</span>
+          <span id="midiStatus">MIDI idle</span>
+          <span id="soundFontTopStatus">Sound idle</span>
+        </div>
+      </header>
+
+      <section class="workspace">
+        <section class="stage-panel">
+          <div class="video-frame mirrored">
+            <video id="video" playsinline muted></video>
+            <canvas id="overlay"></canvas>
+            <div id="calibrationPrompt" class="calibration-prompt" hidden>
+              <strong id="calibrationPromptTitle">Calibration</strong>
+              <span id="calibrationPromptText">Click the keyboard edge in the camera view.</span>
+            </div>
+            <div id="emptyState" class="empty-state">
+              <i data-lucide="camera" aria-hidden="true"></i>
+              <strong>Frame the full keyboard</strong>
+              <span>Make sure the camera can capture the entire keyboard before calibration.</span>
+              <button id="emptyStartCameraBtn" class="empty-start-button" type="button" data-help="Start the webcam feed and begin hand tracking. Chrome or Edge will ask for camera permission.">Start camera</button>
+            </div>
+          </div>
+          <div class="legend">
+            <span><i class="swatch blue"></i>Left-hand side</span>
+            <span><i class="swatch red"></i>Right-hand side</span>
+            <span><i class="line-swatch"></i>Dynamic split</span>
+          </div>
+        </section>
+
+        <aside id="controlScrollShell" class="control-scroll-shell">
+          <div id="controlPanel" class="control-panel">
+            <section class="panel-section">
+              <h2><i data-lucide="sliders-horizontal" aria-hidden="true"></i>Setup</h2>
+              <label class="camera-select-row">
+                Camera
+                <select id="cameraSelect" data-help="Choose which camera to use for hand and keyboard tracking. If labels are missing, start the camera once to grant permission.">
+                  <option value="">Default camera</option>
+                </select>
+              </label>
+              <button id="autoDetectEdgesBtn" class="wide-button" type="button" data-help="Estimate keyboard left and right edges from the current camera frame by looking for the long bright white-key region. You can still adjust manually afterward.">Auto detect edges</button>
+              <div class="button-row">
+                <button id="calibrateLeftBtn" type="button" data-help="Click this, then click the visible left end of the keyboard in the camera view.">Set left edge</button>
+                <button id="calibrateRightBtn" type="button" data-help="Click this, then click the visible right end of the keyboard in the camera view.">Set right edge</button>
+              </div>
+              <div class="toggle-setting-row" data-help-title="Performance mode" data-help="Reduce hand-tracking workload and UI updates to lower MIDI-to-sound latency. Visual hand overlays become simpler while this mode is on.">
+                <span>Performance mode</span>
+                <button id="performanceModeBtn" class="toggle-button" type="button" role="switch" aria-checked="false" aria-label="Performance mode">
+                  <span></span>
+                </button>
+              </div>
+            </section>
+
+            <section class="panel-section">
+              <h2><i data-lucide="music-2" aria-hidden="true"></i>SoundFont</h2>
+              <label class="soundfont-drop-zone" data-help-title="Choose or drop SoundFont" data-help="Click this area to choose a local SoundFont file, or drag an SF2, SF3, DLS, SFOGG, or SFONT file anywhere onto the window.">
+                <i data-lucide="file-music" aria-hidden="true"></i>
+                <strong>Choose or drop SoundFont</strong>
+                <span>SF2, SF3, DLS, SFOGG, or SFONT</span>
+                <input id="soundFontInput" class="visually-hidden-file" type="file" accept=".sf2,.sf3,.dls,.sfogg,.sfont" data-help="Load a local SoundFont file for realistic browser playback. You can click to choose a file or drag an SF2, SF3, DLS, SFOGG, or SFONT file anywhere onto the window." />
+              </label>
+              <div class="field-grid soundfont-grid">
+                <label>
+                  Left sound
+                  <select id="leftPresetSelect" disabled data-help="Preset used for notes routed to the blue left-hand side.">
+                    <option value="">Load SoundFont first</option>
+                  </select>
+                </label>
+                <label>
+                  Right sound
+                  <select id="rightPresetSelect" disabled data-help="Preset used for notes routed to the red right-hand side.">
+                    <option value="">Load SoundFont first</option>
+                  </select>
+                </label>
+              </div>
+              <p id="soundFontStatus" class="field-note">Loading default SoundFont...</p>
+              <label class="soundfont-volume-row" aria-label="SoundFont volume">
+                <i data-lucide="volume-2" aria-hidden="true"></i>
+                <input id="soundFontVolumeInput" type="range" min="0" max="8" step="0.1" value="3" data-help="Adjust the overall SoundFont playback volume. This does not change MIDI velocity or split routing." />
+              </label>
+            </section>
+
+            <section class="panel-section">
+              <h2><i data-lucide="ruler" aria-hidden="true"></i>Keyboard range</h2>
+              <div class="range-preset-row" role="group" aria-label="Keyboard range presets">
+                <button class="range-preset-button" type="button" data-range-preset="C2:C6" data-help="Set the camera-mapped keyboard range to a common 49-key controller: C2 to C6.">49</button>
+                <button class="range-preset-button" type="button" data-range-preset="C2:C7" data-help="Set the camera-mapped keyboard range to a common 61-key controller: C2 to C7.">61</button>
+                <button class="range-preset-button wide-preset" type="button" data-range-preset="A0:C8" data-help="Set the camera-mapped keyboard range to a standard 88-key piano: A0 to C8.">88 / Standard</button>
+              </div>
+              <div class="field-grid note-range-grid">
+                <div class="note-field">
+                  <div class="note-field-header">
+                    <label for="lowNoteInput">Lowest note</label>
+                    <button id="learnLowNoteBtn" class="midi-learn-button" type="button" data-midi-learn-target="low" aria-pressed="false" aria-label="Learn lowest note from MIDI" data-help="Listen for the next MIDI note-on message and use that note as the keyboard's lowest note. Sustain pedal and other MIDI control messages are ignored.">
+                      <i data-lucide="radio" aria-hidden="true"></i>
+                      <span>Learn</span>
+                    </button>
+                  </div>
+                  <div class="note-stepper-row">
+                    <button class="icon-button note-step-button" type="button" aria-label="Move lowest note down" title="Move down one semitone" data-note-target="lowNoteInput" data-note-shift="-1" data-help="Move the lowest note down by one semitone, for example C5 to B4.">
+                      <i data-lucide="chevron-left" aria-hidden="true"></i>
+                    </button>
+                    <input id="lowNoteInput" type="text" value="A0" data-help="Note name at the calibrated left edge. Default A0 is the lowest key on an 88-key piano. MIDI numbers still work if needed." />
+                    <button class="icon-button note-step-button" type="button" aria-label="Move lowest note up" title="Move up one semitone" data-note-target="lowNoteInput" data-note-shift="1" data-help="Move the lowest note up by one semitone, for example C5 to C#5.">
+                      <i data-lucide="chevron-right" aria-hidden="true"></i>
+                    </button>
+                  </div>
+                </div>
+                <div class="note-field">
+                  <div class="note-field-header">
+                    <label for="highNoteInput">Highest note</label>
+                    <button id="learnHighNoteBtn" class="midi-learn-button" type="button" data-midi-learn-target="high" aria-pressed="false" aria-label="Learn highest note from MIDI" data-help="Listen for the next MIDI note-on message and use that note as the keyboard's highest note. Sustain pedal and other MIDI control messages are ignored.">
+                      <i data-lucide="radio" aria-hidden="true"></i>
+                      <span>Learn</span>
+                    </button>
+                  </div>
+                  <div class="note-stepper-row">
+                    <button class="icon-button note-step-button" type="button" aria-label="Move highest note down" title="Move down one semitone" data-note-target="highNoteInput" data-note-shift="-1" data-help="Move the highest note down by one semitone, for example C5 to B4.">
+                      <i data-lucide="chevron-left" aria-hidden="true"></i>
+                    </button>
+                    <input id="highNoteInput" type="text" value="C8" data-help="Note name at the calibrated right edge. Default C8 is the highest key on an 88-key piano. MIDI numbers still work if needed." />
+                    <button class="icon-button note-step-button" type="button" aria-label="Move highest note up" title="Move up one semitone" data-note-target="highNoteInput" data-note-shift="1" data-help="Move the highest note up by one semitone, for example C5 to C#5.">
+                      <i data-lucide="chevron-right" aria-hidden="true"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <p id="midiLearnStatus" class="field-note midi-learn-status" aria-live="polite" hidden></p>
+              <label>
+                Split smoothing
+                <input id="smoothingInput" type="range" min="0" max="0.95" step="0.05" value="0.55" data-help="Controls how slowly the split point moves. Higher values reduce jitter but react more slowly." />
+              </label>
+            </section>
+
+            <section class="panel-section">
+              <h2><i data-lucide="cable" aria-hidden="true"></i>MIDI</h2>
+              <label>
+                MIDI input
+                <span class="inline-control-row">
+                  <select id="midiInputSelect" data-help="Choose the MIDI keyboard input that should drive the browser sounds.">
+                    <option value="">No MIDI inputs yet</option>
+                  </select>
+                  <button id="refreshMidiBtn" class="icon-button" type="button" aria-label="Refresh MIDI" title="Refresh MIDI" data-help="Scan again for connected MIDI devices. Use this after plugging in a keyboard.">
+                    <i data-lucide="refresh-cw" aria-hidden="true"></i>
+                  </button>
+                </span>
+              </label>
+            </section>
+
+            <section class="panel-section">
+              <h2><i data-lucide="crosshair" aria-hidden="true"></i>Split anchor</h2>
+              <div class="split-mode-row" role="group" aria-label="Split point calculation mode">
+                <button class="split-mode-button" type="button" data-split-point-mode="palm" data-help="Use each hand's palm area as the point for calculating the dynamic split. This is the most stable mode.">Palm</button>
+                <button class="split-mode-button active" type="button" data-split-point-mode="thumb" data-help="Use each hand's thumb tip as the point for calculating the dynamic split. This can feel closer to where each hand reaches on the keys.">Thumbs</button>
+              </div>
+            </section>
+
+            <details class="panel-section diagnostics-panel">
+              <summary>
+                <span><i data-lucide="activity" aria-hidden="true"></i>Diagnostics</span>
+                <i data-lucide="chevron-down" aria-hidden="true"></i>
+              </summary>
+              <div class="diagnostics-content">
+                <div class="readout-grid">
+                <div class="readout">
+                  <span>Left hand</span>
+                  <strong id="leftHandReadout">--</strong>
+                </div>
+                <div class="readout">
+                  <span>Right hand</span>
+                  <strong id="rightHandReadout">--</strong>
+                </div>
+                <div class="readout">
+                  <span>Split</span>
+                  <strong id="splitReadout">--</strong>
+                </div>
+                <div class="readout">
+                  <span>Last note</span>
+                  <strong id="lastNoteReadout">--</strong>
+                </div>
+                <div class="readout">
+                  <span>Hands</span>
+                  <strong id="handStatus">Hands idle</strong>
+                </div>
+                <div class="readout">
+                  <span>Last MIDI</span>
+                  <strong id="lastMidiStatus">Last MIDI --</strong>
+                </div>
+                <div class="readout">
+                  <span>Audio</span>
+                  <strong id="audioStatus">Audio idle</strong>
+                </div>
+                <div class="readout wide">
+                  <span>Route</span>
+                  <strong id="routeReadout">Waiting</strong>
+                </div>
+                </div>
+              </div>
+            </details>
+
+            <p class="panel-version">Adaptive Keyboard v.0.1</p>
+          </div>
+        </aside>
+      </section>
+
+      <aside id="helpWindow" class="help-window" aria-live="polite">
+        <div class="help-header">
+          <span><i data-lucide="circle-help" aria-hidden="true"></i>Help</span>
+          <button id="helpCloseBtn" class="help-close-button" type="button" aria-label="Close help">
+            <i data-lucide="x" aria-hidden="true"></i>
+          </button>
+        </div>
+        <strong id="helpTitle">Help Window</strong>
+        <p id="helpText">Move the pointer over an element to see what it does.</p>
+      </aside>
+      <button id="helpToggleBtn" class="help-toggle-button" type="button" aria-label="Open help" hidden>
+        <i data-lucide="circle-help" aria-hidden="true"></i>
+      </button>
+      <div id="soundFontDropOverlay" class="drop-overlay" hidden>
+        <div>
+          <i data-lucide="file-music" aria-hidden="true"></i>
+          <strong>Drop SoundFont to load</strong>
+          <span>SF2, SF3, DLS, SFOGG, or SFONT</span>
+        </div>
+      </div>
+    </main>
+
+    <script type="module" src="./src/js/main.js"></script>
+  </body>
+</html>

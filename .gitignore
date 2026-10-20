@@ -1,0 +1,7 @@
+server.out.log
+server.err.log
+.DS_Store
+Thumbs.db
+
+# Large local SoundFont; load a local file in the app.
+assets/undertale.sf2

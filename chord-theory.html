@@ -1,0 +1,835 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chord Theory</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@500;600&amp;family=Libre+Baskerville:wght@400;700&amp;family=Noto+Sans+Old+Persian&amp;family=Noto+Sans+Runic&amp;display=swap"
+    />
+    <link rel="stylesheet" href="./src/styles/tokens.css" />
+    <link rel="stylesheet" href="./src/styles/layout.css" />
+    <link rel="stylesheet" href="./src/styles/components.css" />
+    <link rel="stylesheet" href="./src/styles/overlays.css" />
+    <link rel="stylesheet" href="./src/styles/responsive.css" />
+    <link rel="stylesheet" href="./src/styles/chord-theory.css" />
+    <script src="https://unpkg.com/lucide@latest"></script>
+  </head>
+  <body class="chord-theory-page">
+    <main class="app-shell">
+      <header class="topbar chord-topbar">
+        <div>
+          <h1 data-help-title="About Chord Theory" data-help="Chord Theory identifies chords, inversions, component notes, and alternate names from a connected MIDI keyboard.">Chord Theory</h1>
+        </div>
+        <nav class="app-mode-nav" aria-label="Application views">
+          <a href="./index.html"><i data-lucide="scan-line" aria-hidden="true"></i>Hand Split</a>
+          <a class="active" href="./chord-theory.html" aria-current="page"><i data-lucide="music" aria-hidden="true"></i>Chord Theory</a>
+        </nav>
+        <div class="chord-header-status" aria-live="polite">
+          <span id="midiHeaderStatus" class="pill" data-help-title="Current input" data-help="Use the on-screen piano now, or connect a MIDI keyboard from the MIDI card.">
+            <i data-lucide="music-2" aria-hidden="true"></i><span class="header-input-label">Screen keyboard</span>
+          </span>
+        </div>
+      </header>
+
+      <section class="workspace chord-workspace">
+        <section class="chord-stage">
+          <section class="chord-display" aria-labelledby="chordName">
+            <div id="visualizationBackground" class="visualization-background" data-background="none" aria-hidden="true"></div>
+            <div id="visualizationBackgroundIncoming" class="visualization-background visualization-background-incoming" data-background="none" aria-hidden="true"></div>
+            <div id="visualizationBackgroundShade" class="visualization-background-shade" aria-hidden="true"></div>
+            <canvas id="noteTrailCanvas" class="note-trail-canvas" aria-hidden="true"></canvas>
+            <div id="chordDisplayStatus" class="chord-display-status">
+              <span id="listeningStatus"><i data-lucide="radio" aria-hidden="true"></i>Waiting for input</span>
+              <span class="chord-display-actions">
+                <span id="compactChordBadge" class="compact-chord-badge" aria-live="polite" hidden>No chord</span>
+                <span id="sustainBadge" class="sustain-badge" data-help="Hold Q or use MIDI CC64 to sustain released notes."><i data-lucide="footprints" aria-hidden="true"></i>Sustain off</span>
+                <button id="chordFullscreenBtn" class="chord-fullscreen-button" type="button" aria-label="Enter fullscreen" title="Enter fullscreen" data-help="Expand the chord analysis stage to fill the screen. Press Escape or use this button again to exit.">
+                  <i data-lucide="maximize-2" aria-hidden="true"></i>
+                </button>
+              </span>
+            </div>
+
+            <div class="chord-result" aria-live="polite">
+              <p id="chordQuality">Ready to listen</p>
+              <h2 id="chordName" class="chord-name">No chord</h2>
+              <div id="chordStaff" class="chord-staff" hidden>
+                <div id="chordStaffCanvas" class="chord-staff-canvas" role="img" aria-label="No notes on the staff"></div>
+                <span id="chordStaffMessage" class="chord-staff-message" hidden></span>
+              </div>
+              <p id="chordMeta">Play three or more notes using MIDI or the screen keyboard.</p>
+              <p id="alternativeChords" class="alternative-chords" hidden></p>
+            </div>
+
+            <div id="activeNoteList" class="active-note-list" aria-label="Active notes"></div>
+
+            <div id="keyboardCameraCalibration" class="keyboard-camera-calibration" role="dialog" aria-modal="true" aria-labelledby="keyboardCameraCalibrationTitle" aria-hidden="true" inert hidden>
+              <div class="camera-fit-header">
+                <span class="camera-fit-heading">
+                  <i data-lucide="scan-line" aria-hidden="true"></i>
+                  <span><strong id="keyboardCameraCalibrationTitle">Fit keyboard camera</strong><small>Drag each point to the matching corner of the physical keyboard.</small></span>
+                </span>
+                <button id="keyboardCameraFitCancelBtn" class="icon-button camera-fit-close" type="button" aria-label="Cancel camera fit" title="Cancel">
+                  <i data-lucide="x" aria-hidden="true"></i>
+                </button>
+              </div>
+              <div id="keyboardCameraFitViewport" class="camera-fit-viewport">
+                <video id="keyboardCameraVideo" autoplay muted playsinline aria-hidden="true"></video>
+                <svg class="camera-fit-guide" aria-hidden="true">
+                  <polygon id="keyboardCameraFitPolygon"></polygon>
+                </svg>
+                <button class="camera-corner-handle" type="button" data-corner-label="1"></button>
+                <button class="camera-corner-handle" type="button" data-corner-label="2"></button>
+                <button class="camera-corner-handle" type="button" data-corner-label="3"></button>
+                <button class="camera-corner-handle" type="button" data-corner-label="4"></button>
+              </div>
+              <div class="camera-fit-footer">
+                <span id="keyboardCameraFitHint">Align all four corners with the visible keyboard outline.</span>
+                <span class="camera-fit-actions">
+                  <button id="keyboardCameraFitResetBtn" class="camera-fit-secondary" type="button"><i data-lucide="rotate-ccw" aria-hidden="true"></i>Reset</button>
+                  <button id="keyboardCameraFitApplyBtn" class="camera-fit-primary" type="button"><i data-lucide="check" aria-hidden="true"></i>Use fit</button>
+                </span>
+              </div>
+            </div>
+
+            <div class="keyboard-surface">
+              <div
+                id="chordKeyboard"
+                class="chord-keyboard"
+                role="group"
+                aria-label="Interactive 88-key piano keyboard with no active notes"
+                data-help-title="Screen keyboard"
+                data-help="Click a piano key to play it. Hold Q to sustain notes while selecting a chord."
+              >
+                <canvas id="keyboardCameraCanvas" class="keyboard-camera-canvas" aria-hidden="true" hidden></canvas>
+              </div>
+            </div>
+          </section>
+
+          <div class="chord-marker-legend" aria-label="Keyboard marker legend">
+            <span class="harmony-marker-legend-item"><i class="chord-marker root-marker" aria-hidden="true"></i>Root note</span>
+            <span class="harmony-marker-legend-item"><i class="chord-marker bass-marker" aria-hidden="true"></i>Bass / lowest note</span>
+            <span id="keyGuideLegend" hidden><i class="chord-marker key-guide-legend-marker" aria-hidden="true"></i>Upcoming note</span>
+          </div>
+
+          <section class="chord-history-section" aria-labelledby="historyTitle" hidden>
+            <div class="section-heading-row">
+              <h2 id="historyTitle"><i data-lucide="history" aria-hidden="true"></i>Recent chords</h2>
+              <button id="clearHistoryBtn" class="icon-button subtle-icon-button" type="button" aria-label="Clear chord history" title="Clear history" data-help="Remove all chords from the recent recognition history.">
+                <i data-lucide="trash-2" aria-hidden="true"></i>
+              </button>
+            </div>
+            <ol id="chordHistory" class="chord-history">
+              <li class="history-empty">Recognized chords will appear here.</li>
+            </ol>
+          </section>
+        </section>
+
+        <aside id="controlScrollShell" class="control-scroll-shell">
+          <div id="controlPanel" class="control-panel">
+            <div id="educationViewSwitcher" class="education-view-switcher" hidden>
+              <div class="chord-segmented-control" role="group" aria-label="Right panel mode">
+                <button class="active" type="button" data-education-view="setup" aria-pressed="true" data-help="Show MIDI, audio, recognition, visualization, and display settings.">Setup</button>
+                <button type="button" data-education-view="learn" aria-pressed="false" data-help="Open guided music-theory lessons and interactive exercises.">Learn Music Theory</button>
+              </div>
+            </div>
+
+            <div id="setupCardGroup" class="control-card-group">
+            <section class="panel-section">
+              <h2><i data-lucide="cable" aria-hidden="true"></i>MIDI</h2>
+              <label>
+                MIDI input
+                <span class="inline-control-row">
+                  <select id="midiInputSelect" data-help="Choose the MIDI keyboard used for chord recognition.">
+                    <option value="">No MIDI inputs yet</option>
+                  </select>
+                  <button id="refreshMidiBtn" class="icon-button" type="button" aria-label="Refresh MIDI" title="Refresh MIDI" data-help="Scan again for connected MIDI devices.">
+                    <i data-lucide="refresh-cw" aria-hidden="true"></i>
+                  </button>
+                </span>
+              </label>
+              <p id="lastMidiMessage" class="field-note">Waiting for a MIDI input.</p>
+            </section>
+
+            <section class="panel-section">
+              <h2><i data-lucide="list-music" aria-hidden="true"></i>Autoplay</h2>
+              <div class="toggle-setting-row autoplay-toggle-row">
+                <span>Autoplay mode</span>
+                <button id="autoplayToggle" class="toggle-button" type="button" role="switch" aria-checked="false" aria-label="Autoplay mode" data-help="Enable MIDI file playback through an external MIDI output. Live input behavior stays unchanged when this mode is off."><span aria-hidden="true"></span></button>
+              </div>
+              <div id="autoplayContent" class="collapsible-region is-collapsed" aria-hidden="true" inert>
+                <div class="collapsible-region-inner autoplay-content-inner">
+                  <label id="midiFileDropZone" class="background-upload-button midi-file-drop-zone" data-help-title="Choose or drop MIDI" data-help="Choose a Standard MIDI File, or drop one onto this area for external playback and visualization.">
+                    <i data-lucide="file-music" aria-hidden="true"></i>
+                    <span><strong id="autoplayFileName">Choose or drop MIDI</strong><small id="autoplayFileMeta">MID or MIDI</small></span>
+                    <input id="autoplayFileInput" class="visually-hidden-file" type="file" accept=".mid,.midi,audio/midi,audio/x-midi" />
+                  </label>
+                  <label>
+                    MIDI output
+                    <select id="autoplayOutputSelect" data-help="Choose the external MIDI instrument used for Autoplay.">
+                      <option value="none">None</option>
+                    </select>
+                  </label>
+                  <p id="autoplayStatus" class="field-note autoplay-prerequisite-status" aria-live="polite">Enable Autoplay mode to load a MIDI file.</p>
+                  <div id="autoplayPlaybackControls" class="collapsible-region autoplay-playback-controls is-collapsed" aria-hidden="true" inert hidden>
+                    <div class="collapsible-region-inner autoplay-playback-controls-inner">
+                      <div class="autoplay-transport-group">
+                        <span class="setting-label">Playback</span>
+                        <div class="autoplay-transport" role="group" aria-label="MIDI playback controls">
+                          <button id="autoplayPlayBtn" class="autoplay-primary-button" type="button" disabled aria-label="Play MIDI"><i data-lucide="play" aria-hidden="true"></i></button>
+                          <button id="autoplayStopBtn" class="autoplay-icon-button" type="button" disabled aria-label="Stop MIDI"><i data-lucide="square" aria-hidden="true"></i></button>
+                          <span id="autoplayTime" class="autoplay-time">0:00 / 0:00</span>
+                        </div>
+                      </div>
+                      <input id="autoplayProgress" class="autoplay-progress" type="range" min="0" max="1000" value="0" step="1" disabled aria-label="MIDI playback position" data-help="Seek within the loaded MIDI file." />
+                      <div class="autoplay-settings-grid">
+                        <label>
+                          Speed
+                          <select id="autoplaySpeed" data-help="Change playback speed without changing the MIDI note pitches.">
+                            <option value="0.5">0.5x</option>
+                            <option value="0.75">0.75x</option>
+                            <option value="1" selected>1x</option>
+                            <option value="1.25">1.25x</option>
+                            <option value="1.5">1.5x</option>
+                            <option value="2">2x</option>
+                          </select>
+                        </label>
+                        <label>
+                          Transpose
+                          <select id="autoplayTranspose" data-help="Transpose MIDI notes before sending them to the external instrument and visualization.">
+                            <option value="-12">-12</option>
+                            <option value="-7">-7</option>
+                            <option value="-5">-5</option>
+                            <option value="0" selected>0</option>
+                            <option value="5">+5</option>
+                            <option value="7">+7</option>
+                            <option value="12">+12</option>
+                          </select>
+                        </label>
+                      </div>
+                      <div class="toggle-setting-row autoplay-loop-row">
+                        <span>Loop</span>
+                        <button id="autoplayLoopToggle" class="toggle-button" type="button" role="switch" aria-checked="false" aria-label="Loop MIDI playback" data-help="Restart the MIDI file automatically when playback reaches the end."><span aria-hidden="true"></span></button>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="autoplay-visualization-setting">
+                    <span class="setting-label">Visualization</span>
+                    <div class="chord-segmented-control three-option-control" role="group" aria-label="Autoplay visualization mode">
+                      <button class="active" type="button" data-autoplay-visualization="rise" aria-pressed="true" data-help="Use the standard visualization where played notes rise from the keyboard.">Rise</button>
+                      <button type="button" data-autoplay-visualization="fall" aria-pressed="false" data-help="Preview MIDI notes falling toward the keyboard. Notes reach the keys at their scheduled playback time.">Fall</button>
+                      <button type="button" data-autoplay-visualization="roll" aria-pressed="false" data-help="Show a horizontal piano roll moving from right to left. Notes sound at the center playhead and turn white while playing.">Roll</button>
+                    </div>
+                    <div id="rollPressSetting" class="collapsible-region roll-press-setting is-collapsed" aria-hidden="true" inert hidden>
+                      <div class="collapsible-region-inner">
+                        <div class="toggle-setting-row roll-press-row">
+                          <span>Press motion</span>
+                          <button id="rollPressToggle" class="toggle-button" type="button" role="switch" aria-checked="true" aria-label="Roll note press motion" data-help="Make Roll notes dip slightly when they sound and spring back when they are released."><span aria-hidden="true"></span></button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <label>
+                    Stage label
+                    <input id="autoplayStageLabelInput" type="text" maxlength="24" placeholder="Listening" autocomplete="off" data-help="Replace the Listening text in the visualization's upper-left corner while Autoplay mode is enabled. Leave blank to keep Listening." />
+                  </label>
+                </div>
+              </div>
+            </section>
+
+            <section class="panel-section">
+              <h2><i data-lucide="music-2" aria-hidden="true"></i>SoundFont</h2>
+              <div class="toggle-setting-row soundfont-toggle-row">
+                <span>SoundFont audio</span>
+                <button id="soundFontToggle" class="toggle-button" type="button" role="switch" aria-checked="false" aria-label="SoundFont audio" data-help="Load the default SoundFont and enable playback. Audio remains off until you turn this on."><span aria-hidden="true"></span></button>
+              </div>
+              <div id="soundFontContent" class="collapsible-region is-collapsed" aria-hidden="true">
+                <div class="collapsible-region-inner soundfont-content-inner">
+                  <label class="background-upload-button soundfont-drop-zone" data-help-title="Choose or drop SoundFont" data-help="Click this area to choose a local SoundFont file, or drag an SF2, SF3, DLS, SFOGG, or SFONT file anywhere onto the window.">
+                    <i data-lucide="file-music" aria-hidden="true"></i>
+                    <span><strong>Choose or drop SoundFont</strong><small>SF2, SF3, DLS, SFOGG, or SFONT</small></span>
+                    <input id="soundFontInput" class="visually-hidden-file" type="file" accept=".sf2,.sf3,.dls,.sfogg,.sfont" />
+                  </label>
+                  <label class="chord-preset-field">
+                    Sound
+                    <select id="chordPresetSelect" disabled data-help="Choose the SoundFont preset used by both MIDI and the screen keyboard.">
+                      <option value="">Load SoundFont first</option>
+                    </select>
+                  </label>
+                  <p id="soundFontStatus" class="field-note chord-soundfont-status" data-status="idle">SoundFont audio is off.</p>
+                  <label class="soundfont-volume-row" aria-label="SoundFont volume">
+                    <i data-lucide="volume-2" aria-hidden="true"></i>
+                    <input id="soundFontVolumeInput" type="range" min="0" max="8" step="0.1" value="3" data-help="Adjust playback volume for MIDI and the screen keyboard." />
+                  </label>
+                </div>
+              </div>
+            </section>
+
+            <section class="panel-section">
+              <h2><i data-lucide="book-open" aria-hidden="true"></i>Recognition</h2>
+              <div class="recognition-setting">
+                <span class="setting-label">Note spelling</span>
+                <div class="chord-segmented-control" role="group" aria-label="Note spelling">
+                  <button class="active" type="button" data-spelling="sharp" aria-pressed="true" data-help="Use sharp note names such as C# and F#.">Sharps</button>
+                  <button type="button" data-spelling="flat" aria-pressed="false" data-help="Use flat note names such as Db and Gb.">Flats</button>
+                </div>
+              </div>
+              <p class="field-note">A trailing ? marks a root-based estimate when multiple chord names remain plausible.</p>
+            </section>
+
+            <section class="panel-section">
+              <h2><i data-lucide="sparkles" aria-hidden="true"></i>Visualization</h2>
+              <div class="toggle-setting-row visualization-toggle-row">
+                <span>Note trails</span>
+                <button
+                  id="noteTrailsToggle"
+                  class="toggle-button"
+                  type="button"
+                  role="switch"
+                  aria-checked="true"
+                  aria-label="Note trails"
+                  data-help-title="Note trails"
+                  data-help="Show animated trails rising from played keys. Root and bass notes use the keyboard marker colors."
+                ><span aria-hidden="true"></span></button>
+              </div>
+              <div id="visualizationSettings" class="visualization-settings">
+                <div id="trailOptions" class="collapsible-region">
+                  <div class="collapsible-region-inner trail-options-inner">
+                    <label id="trailSpeedRow" class="visualization-range-row">
+                      <span><i data-lucide="gauge" aria-hidden="true"></i>Speed</span>
+                      <input id="trailSpeedInput" type="range" min="50" max="200" step="10" value="100" data-help="Adjust how quickly note trails rise. 100% is the standard speed." />
+                    </label>
+                    <div id="trailColorGroup" class="visualization-setting-group">
+                      <span class="setting-label">Color</span>
+                      <div class="trail-palette-control" role="group" aria-label="Trail color palette">
+                    <button class="active" type="button" data-trail-palette="classic" aria-pressed="true" data-help="Use the app accent, with blue root notes and red bass notes.">
+                      <i class="palette-swatch classic-swatch" aria-hidden="true"></i><span>Accent</span>
+                    </button>
+                    <button type="button" data-trail-palette="aurora" aria-pressed="false" data-help="Use a cool cyan, arctic blue, and soft violet color field.">
+                      <i class="palette-swatch aurora-swatch" aria-hidden="true"></i><span>Glacier</span>
+                    </button>
+                    <button type="button" data-trail-palette="spectrum" aria-pressed="false" data-help="Use a refined blue, violet, and rose color field.">
+                      <i class="palette-swatch spectrum-swatch" aria-hidden="true"></i><span>Prism</span>
+                    </button>
+                    <button type="button" data-trail-palette="solar" aria-pressed="false" data-help="Use a warm coral, amber, and soft gold color field.">
+                      <i class="palette-swatch solar-swatch" aria-hidden="true"></i><span>Ember</span>
+                    </button>
+                    <button type="button" data-trail-palette="smart" aria-pressed="false" disabled data-help="Create a contrasting two-color gradient from the current background or background image.">
+                      <i id="smartTrailSwatch" class="palette-swatch smart-swatch" aria-hidden="true"></i><span>Smart</span>
+                    </button>
+                    <button type="button" data-trail-palette="custom" aria-pressed="false" data-help="Use one custom color for note trails, particles, and glow.">
+                      <i id="customTrailSwatch" class="palette-swatch custom-color-swatch" aria-hidden="true"></i><span>Custom</span>
+                    </button>
+                      </div>
+                      <label id="customTrailColorRow" class="visualization-color-row is-collapsed" aria-hidden="true"><span>Note color</span><input id="customTrailColorInput" type="color" value="#ffd52e" aria-label="Custom note color" data-help="Choose a custom color for note trails, particles, and glow." /></label>
+                    </div>
+                    <span id="trailEffectsHeading" class="visualization-subheading">Effects</span>
+                    <label id="trailParticleRow" class="visualization-range-row">
+                      <span><i data-lucide="sparkles" aria-hidden="true"></i>Particles</span>
+                      <input id="trailParticleInput" type="range" min="0" max="100" step="5" value="45" data-help="Adjust particles at the keyboard edge and along moving trails. Set to zero to disable them." />
+                    </label>
+                    <label id="upwardSnowRow" class="visualization-range-row">
+                      <span><i data-lucide="snowflake" aria-hidden="true"></i>Snow</span>
+                      <input id="upwardSnowInput" type="range" min="0" max="100" step="5" value="0" aria-label="Snow density" data-help="Adjust snow-like particles in the current note colors. They move upward in Rise, downward in Fall, and left in Roll. Set to zero to disable them." />
+                    </label>
+                    <label id="trailGlowRow" class="visualization-range-row">
+                      <span><i data-lucide="sun" aria-hidden="true"></i>Glow</span>
+                      <input id="trailGlowInput" type="range" min="0" max="100" step="5" value="35" data-help="Adjust the soft light around note trails and particles. Set to zero for a flat appearance." />
+                    </label>
+                  </div>
+                </div>
+                <div class="visualization-setting-group">
+                  <span class="setting-label">Background</span>
+                  <div class="background-preset-control" role="group" aria-label="Visualization background">
+                    <button class="active" type="button" data-visual-background="none" aria-pressed="true" data-help="Use the pure black performance background.">
+                      <i class="background-swatch none-background-swatch" aria-hidden="true"></i><span>Black</span>
+                    </button>
+                    <button type="button" data-visual-background="studio" aria-pressed="false" data-help="Use a polished titanium gradient with restrained silver illumination.">
+                      <i class="background-swatch studio-background-swatch" aria-hidden="true"></i><span>Titanium</span>
+                    </button>
+                    <button type="button" data-visual-background="atmosphere" aria-pressed="false" data-help="Use a slowly moving aurora with layered teal, ice-blue, and magenta light bands.">
+                      <i class="background-swatch atmosphere-background-swatch" aria-hidden="true"></i><span>Aurora</span>
+                    </button>
+                    <button type="button" data-visual-background="stage" aria-pressed="false" data-help="Show the current Vista landscape. While Vista is selected, click it again to load a new image.">
+                      <span class="background-swatch stage-background-swatch" aria-hidden="true"><i data-lucide="mountain"></i></span><span>Vista</span>
+                    </button>
+                    <button type="button" data-visual-background="solid" aria-pressed="false" data-help="Use a custom solid color as the visualization background.">
+                      <i id="solidBackgroundSwatch" class="background-swatch solid-color-swatch" aria-hidden="true"></i><span>Solid</span>
+                    </button>
+                  </div>
+                  <label id="solidBackgroundColorRow" class="visualization-color-row is-collapsed" aria-hidden="true"><span>Solid color</span><input id="solidBackgroundColorInput" type="color" value="#101014" aria-label="Solid background color" data-help="Choose the solid background color. Selecting a color activates the Solid background." /></label>
+                  <button id="backgroundUploadBtn" class="background-upload-button" type="button" aria-pressed="false" data-help="Choose a local image for the visualization background. The image is stored in this browser for future sessions.">
+                    <i data-lucide="image-plus" aria-hidden="true"></i>
+                    <span><strong>Choose background</strong><small id="backgroundUploadStatus">JPG, PNG, or WebP</small></span>
+                  </button>
+                  <input id="backgroundImageInput" class="visually-hidden-file" type="file" accept="image/jpeg,image/png,image/webp,image/avif" />
+                </div>
+                <div id="backgroundAdjustments" class="collapsible-region is-collapsed" aria-hidden="true">
+                  <div class="collapsible-region-inner background-adjustments-inner">
+                    <label id="backgroundBlurRow" class="visualization-range-row">
+                      <span><i data-lucide="blend" aria-hidden="true"></i>Blur</span>
+                      <input id="backgroundBlurInput" type="range" min="0" max="30" step="1" value="8" data-help="Adjust Gaussian blur applied to the visualization background." />
+                    </label>
+                    <label id="backgroundDarknessRow" class="visualization-range-row">
+                      <span><i data-lucide="contrast" aria-hidden="true"></i>Darkness</span>
+                      <input id="backgroundDarknessInput" type="range" min="0" max="90" step="1" value="58" data-help="Darken the background to keep chord names and note trails readable." />
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section class="panel-section">
+              <h2><i data-lucide="list-ordered" aria-hidden="true"></i>Chord display</h2>
+              <div class="harmony-setting chord-presentation-setting">
+                <span class="setting-label">Layout</span>
+                <div class="chord-segmented-control three-option-control" role="group" aria-label="Chord display layout">
+                  <button class="active" type="button" data-chord-presentation="full" aria-pressed="true" data-help="Show the full chord analysis in the center of the visualization.">Centered</button>
+                  <button type="button" data-chord-presentation="compact" aria-pressed="false" data-help="Minimize the recognized chord into the top status bar beside Sustain.">Minimized</button>
+                  <button type="button" data-chord-presentation="visual" aria-pressed="false" data-help="Hide chord analysis details and use the stage as a focused piano visualization.">Hidden</button>
+                </div>
+              </div>
+              <div id="centeredContentSetting" class="harmony-setting centered-content-setting">
+                <span class="setting-label">Centered content</span>
+                <div class="chord-segmented-control three-option-control" role="group" aria-label="Centered chord content">
+                  <button class="active" type="button" data-centered-content="name" aria-pressed="true" data-help="Show the recognized chord name and analysis in the center of the stage.">Name</button>
+                  <button type="button" data-centered-content="staff" aria-pressed="false" data-help="Show the played voicing on a music staff, with the chord name in the top-right status pill.">Staff</button>
+                  <button type="button" data-centered-content="name-staff" aria-pressed="false" data-help="Stack the recognized chord name above its played voicing in the center of the stage.">Name + Staff</button>
+                </div>
+              </div>
+              <div class="harmony-setting">
+                <span class="setting-label">Notation</span>
+                <div class="chord-segmented-control" role="group" aria-label="Chord notation mode">
+                  <button class="active" type="button" data-display-mode="chord" aria-pressed="true" data-help="Show the recognized chord name as the main result.">Chord</button>
+                  <button type="button" data-display-mode="degree" aria-pressed="false" data-help="Show a Roman-numeral analysis in the selected key while keeping the chord name below.">Degrees</button>
+                </div>
+              </div>
+              <div class="toggle-setting-row chord-hold-row">
+                <span>Hold last chord</span>
+                <button
+                  id="holdLastChordToggle"
+                  class="toggle-button"
+                  type="button"
+                  role="switch"
+                  aria-checked="false"
+                  aria-label="Hold last chord"
+                  data-help-title="Hold last chord"
+                  data-help="Keep the last recognized chord on screen after its notes are released. The display updates when a new chord is recognized."
+                ><span aria-hidden="true"></span></button>
+              </div>
+              <div id="harmonyOptions" class="harmony-options is-collapsed" aria-hidden="true" inert>
+                <div class="harmony-key-setting">
+                  <div class="harmony-key-header">
+                    <span class="setting-label">Key</span>
+                    <button id="harmonyTonicLearnBtn" class="harmony-learn-button" type="button" aria-pressed="false" aria-label="Learn key from MIDI" data-help="Listen for the next MIDI note-on message and use its pitch class as the analysis key. Sustain pedal and other MIDI control messages are ignored.">
+                      <i data-lucide="radio" aria-hidden="true"></i>
+                      <span>Learn</span>
+                    </button>
+                  </div>
+                  <div class="harmony-key-stepper" role="group" aria-label="Analysis key">
+                    <button id="harmonyTonicDownBtn" class="harmony-key-step-button" type="button" aria-label="Previous key" data-help="Move the analysis key down by one semitone, for example C to B.">
+                      <i data-lucide="chevron-left" aria-hidden="true"></i>
+                    </button>
+                    <output id="harmonyTonicValue" aria-live="polite">C</output>
+                    <button id="harmonyTonicUpBtn" class="harmony-key-step-button" type="button" aria-label="Next key" data-help="Move the analysis key up by one semitone, for example C to C sharp.">
+                      <i data-lucide="chevron-right" aria-hidden="true"></i>
+                    </button>
+                  </div>
+                </div>
+                <div class="harmony-setting">
+                  <span class="setting-label">Tonality</span>
+                  <div class="chord-segmented-control" role="group" aria-label="Key tonality">
+                    <button class="active" type="button" data-harmony-mode="major" aria-pressed="true" data-help="Analyze chords in a major key.">Major</button>
+                    <button type="button" data-harmony-mode="minor" aria-pressed="false" data-help="Analyze chords in a minor key, including natural and raised leading-tone functions.">Minor</button>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section class="panel-section camera-setup-card">
+              <h2><i data-lucide="camera" aria-hidden="true"></i>Camera</h2>
+              <div class="toggle-setting-row camera-toggle-row">
+                <span>Keyboard camera</span>
+                <button id="keyboardCameraToggle" class="toggle-button" type="button" role="switch" aria-checked="false" aria-label="Keyboard camera" data-help="Show your physical keyboard inside the on-screen keyboard while preserving note highlights and markers."><span aria-hidden="true"></span></button>
+              </div>
+              <div id="keyboardCameraContent" class="collapsible-region is-collapsed" aria-hidden="true" inert hidden>
+                <div class="collapsible-region-inner keyboard-camera-content-inner">
+                  <label>
+                    Camera
+                    <span class="inline-control-row">
+                      <select id="keyboardCameraSelect" data-help="Choose the camera that can see the entire physical keyboard.">
+                        <option value="">Default camera</option>
+                      </select>
+                      <button id="keyboardCameraRefreshBtn" class="icon-button" type="button" aria-label="Refresh cameras" title="Refresh cameras" data-help="Scan again for available cameras.">
+                        <i data-lucide="refresh-cw" aria-hidden="true"></i>
+                      </button>
+                    </span>
+                  </label>
+                  <div class="toggle-setting-row camera-mirror-row">
+                    <span>Mirror camera</span>
+                    <button id="keyboardCameraMirrorToggle" class="toggle-button" type="button" role="switch" aria-checked="true" aria-label="Mirror camera" data-help="Mirror the camera view to match a front-facing camera preview."><span aria-hidden="true"></span></button>
+                  </div>
+                  <div class="toggle-setting-row camera-key-overlay-row">
+                    <span>Keyboard overlay</span>
+                    <button id="keyboardCameraOverlayToggle" class="toggle-button" type="button" role="switch" aria-checked="true" aria-label="Keyboard overlay" data-help="Show translucent screen-keyboard shapes over the fitted camera. Turn this off for a clean camera view while keeping note highlights and markers available."><span aria-hidden="true"></span></button>
+                  </div>
+                  <label class="visualization-range-row camera-highlight-opacity-row">
+                    <span><i data-lucide="blend" aria-hidden="true"></i>Transparency</span>
+                    <input id="keyboardCameraHighlightTransparency" type="range" min="0" max="100" step="5" value="60" aria-label="Camera highlight transparency" data-help="Adjust note-highlight transparency over the fitted camera. At 100%, note highlights are invisible while root, bass, and upcoming-note markers remain visible." />
+                  </label>
+                  <button id="keyboardCameraFitBtn" class="wide-button camera-fit-button" type="button" disabled data-help="Open the full camera preview, then drag four points to the physical keyboard corners.">
+                    <i data-lucide="scan-line" aria-hidden="true"></i><span>Fit keyboard</span>
+                  </button>
+                  <p id="keyboardCameraStatus" class="field-note" data-status="idle" aria-live="polite">Camera is off.</p>
+                </div>
+              </div>
+            </section>
+
+            <details id="experimentalPanel" class="panel-section diagnostics-panel experimental-settings-card">
+              <summary data-help="Show or hide experimental visualization and display controls.">
+                <span><i data-lucide="flask-conical" aria-hidden="true"></i>Experimental</span>
+                <i data-lucide="chevron-down" aria-hidden="true"></i>
+              </summary>
+              <div class="diagnostics-content experimental-content">
+                <div class="advanced-settings">
+                <div class="toggle-setting-row educational-mode-setting">
+                  <span>Enable educational mode</span>
+                  <button
+                    id="educationalModeToggle"
+                    class="toggle-button"
+                    type="button"
+                    role="switch"
+                    aria-checked="false"
+                    aria-label="Enable educational mode"
+                    data-help="Add a Learn Music Theory workspace with guided tutorials and interactive exercises."
+                  ><span aria-hidden="true"></span></button>
+                </div>
+                <div class="experimental-background-setting">
+                  <span class="setting-label">Background lab</span>
+                  <div class="experimental-background-control" role="group" aria-label="Experimental visualization backgrounds">
+                    <button type="button" data-visual-background="nebula" aria-pressed="false" data-help="Use a rain-soaked late-night alley with quiet fluorescent reflections moving across wet pavement.">
+                      <i class="background-swatch after-rain-background-swatch" aria-hidden="true"></i><span>After Rain</span>
+                    </button>
+                    <button type="button" data-visual-background="satin" aria-pressed="false" data-help="Use a late-summer seaside platform at 5:17 PM with drifting cloud bands and analog texture.">
+                      <i class="background-swatch five-seventeen-background-swatch" aria-hidden="true"></i><span>5:17 PM</span>
+                    </button>
+                    <button type="button" data-visual-background="halo" aria-pressed="false" data-help="Use a restrained late-night train-window scene with passing city reflections and muted film texture.">
+                      <i class="background-swatch last-train-background-swatch" aria-hidden="true"></i><span>Last Train</span>
+                    </button>
+                    <button id="backgroundApiEntryBtn" type="button" data-visual-background="api" aria-pressed="false" aria-expanded="false" data-help="Open an input for your own image API URL. No built-in image service is contacted.">
+                      <span class="background-swatch api-background-swatch" aria-hidden="true"><i data-lucide="link-2"></i></span><span>API URL</span>
+                    </button>
+                  </div>
+                  <div id="backgroundApiPanel" class="collapsible-region background-api-panel is-collapsed" aria-hidden="true" inert hidden>
+                    <div class="collapsible-region-inner background-api-panel-inner">
+                      <label for="backgroundApiUrlInput">Background API URL</label>
+                      <div class="background-api-input-row">
+                        <input id="backgroundApiUrlInput" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://example.com/random-image" data-help="Paste an HTTP or HTTPS endpoint that returns an image directly or JSON containing an image URL." />
+                        <button id="backgroundApiLoadBtn" class="icon-button" type="button" aria-label="Load background API URL" title="Load background" data-help="Request the pasted API URL and use its returned image as the background.">
+                          <i data-lucide="arrow-right" aria-hidden="true"></i>
+                        </button>
+                      </div>
+                      <p id="backgroundApiStatus" class="field-note">Direct images and common JSON URL fields are supported.</p>
+                    </div>
+                  </div>
+                </div>
+                <div id="visualizationColorModeSetting" class="visualization-color-mode-setting">
+                  <span class="setting-label">System UI color</span>
+                  <div class="chord-segmented-control" role="group" aria-label="Visualization color mode">
+                    <button type="button" data-visualization-color-mode="accent" aria-pressed="false" data-help="Keep the stage accents and piano highlights in the standard app yellow.">Accent</button>
+                    <button class="active" type="button" data-visualization-color-mode="note" aria-pressed="true" data-help="Match stage accents and Rise or Fall piano highlights to the current note color palette.">Note theme</button>
+                  </div>
+                </div>
+                <div class="stage-font-setting">
+                  <span class="setting-label">Stage typeface</span>
+                  <div class="typeface-preset-control" role="group" aria-label="Stage typeface">
+                    <button class="active" type="button" data-stage-font="system" aria-pressed="true" data-help="Use the current Apple-style system typeface throughout the main stage.">
+                      <span class="typeface-sample" aria-hidden="true">Aa</span><span>System</span>
+                    </button>
+                    <button type="button" data-stage-font="garamond" aria-pressed="false" data-help="Use EB Garamond for an elegant, literary score-book character.">
+                      <span class="typeface-sample" aria-hidden="true">Aa</span><span>Garamond</span>
+                    </button>
+                    <button type="button" data-stage-font="baskerville" aria-pressed="false" data-help="Use Libre Baskerville for a poised, highly readable classical character.">
+                      <span class="typeface-sample" aria-hidden="true">Aa</span><span>Baskerville</span>
+                    </button>
+                    <button type="button" data-stage-font="oracle" aria-pressed="false" data-help="Transform the displayed chord into actual Old Persian cuneiform signs for a deliberately cryptic visualization-video treatment.">
+                      <span class="typeface-sample" aria-hidden="true">&#x103A0;&#x103A8;</span><span>Sigil</span>
+                    </button>
+                    <button type="button" data-stage-font="bodoni" aria-pressed="false" data-help="Transform the displayed chord into Elder Futhark runes for a restrained Nordic-esoteric visualization treatment.">
+                      <span class="typeface-sample" aria-hidden="true">&#x16A0;&#x16B1;</span><span>Futhark</span>
+                    </button>
+                  </div>
+                </div>
+                <div class="toggle-setting-row clean-mode-setting">
+                  <span>Hide stage UI</span>
+                  <button
+                    id="cleanModeToggle"
+                    class="toggle-button"
+                    type="button"
+                    role="switch"
+                    aria-checked="false"
+                    aria-label="Clean mode"
+                    data-help="Hide the stage status and action controls for a distraction-free performance view."
+                  ><span aria-hidden="true"></span></button>
+                </div>
+                <div class="toggle-setting-row harmony-markers-setting">
+                  <span>Hide root/bass markers</span>
+                  <button
+                    id="hideHarmonyMarkersToggle"
+                    class="toggle-button"
+                    type="button"
+                    role="switch"
+                    aria-checked="false"
+                    aria-label="Hide root and bass note markers"
+                    data-help="Hide the blue root and red bass markers on the keyboard, along with their legend. Chord recognition and note highlights are unchanged."
+                  ><span aria-hidden="true"></span></button>
+                </div>
+                <div class="toggle-setting-row trail-shape-row">
+                  <span>Square corners for notes</span>
+                  <button id="trailSquareCornersToggle" class="toggle-button" type="button" role="switch" aria-checked="false" aria-label="Square note corners" data-help="Use straight square corners for Rise, Fall, and Roll note bars instead of rounded corners."><span aria-hidden="true"></span></button>
+                </div>
+                <div class="toggle-setting-row bright-mode-setting">
+                  <span>Bright mode</span>
+                  <button
+                    id="brightModeToggle"
+                    class="toggle-button"
+                    type="button"
+                    role="switch"
+                    aria-checked="false"
+                    aria-label="Bright mode"
+                    data-help="Use dark stage text and light translucent status controls for bright visualization backgrounds."
+                  ><span aria-hidden="true"></span></button>
+                </div>
+                <div class="toggle-setting-row staff-layout-setting">
+                  <span>Always show grand staff</span>
+                  <button
+                    id="alwaysGrandStaffToggle"
+                    class="toggle-button"
+                    type="button"
+                    role="switch"
+                    aria-checked="false"
+                    aria-label="Always show grand staff"
+                    data-help="Always show both treble and bass staves in Staff mode, even when every played note fits on one stave."
+                  ><span aria-hidden="true"></span></button>
+                </div>
+                <div class="wake-lock-setting">
+                  <div>
+                    <strong>Keep screen awake</strong>
+                    <small id="wakeLockStatus" aria-live="polite">Screen wake lock is off.</small>
+                  </div>
+                  <button
+                    id="wakeLockToggle"
+                    class="toggle-button"
+                    type="button"
+                    role="switch"
+                    aria-checked="false"
+                    aria-label="Keep screen awake"
+                    data-help="Prevent the screen from dimming or locking while this tab remains visible. The browser or power-saving settings can still release it."
+                  ><span aria-hidden="true"></span></button>
+                </div>
+                </div>
+              </div>
+            </details>
+            </div>
+
+            <div id="learningCardGroup" class="control-card-group learning-card-group" hidden inert>
+              <section class="panel-section education-intro-card">
+                <h2><i data-lucide="graduation-cap" aria-hidden="true"></i>Learn Music Theory</h2>
+                <p>Build practical listening and keyboard skills through short lessons followed by focused exercises.</p>
+                <div class="education-path-summary" aria-label="Learning path availability">
+                  <span><strong>2</strong> exercises available</span>
+                  <span>More lessons are in development</span>
+                </div>
+                <label class="education-output-field">
+                  Exercise output
+                  <select id="earTrainingOutputSelect" data-help="Choose Local SoundFont or an external MIDI device for audio used by learning exercises.">
+                    <option value="local-soundfont">Local SoundFont</option>
+                  </select>
+                </label>
+              </section>
+
+              <section id="learningFlowCard" class="panel-section learning-flow-card">
+                <div id="learningPathView" class="learning-flow-view">
+                  <div class="learning-flow-header">
+                    <span class="learning-header-leading" aria-hidden="true"><i data-lucide="map"></i></span>
+                    <h2>Learning path</h2>
+                  </div>
+                  <div class="lesson-entry-list">
+                    <button class="lesson-entry" type="button" disabled aria-label="Notes and intervals, coming soon">
+                      <span class="lesson-entry-icon"><i data-lucide="ruler" aria-hidden="true"></i></span>
+                      <span><strong>Notes &amp; intervals</strong><small>Hear distance, direction, and octave</small></span>
+                      <span class="lesson-availability">Coming soon</span>
+                    </button>
+                    <button class="lesson-entry" type="button" disabled aria-label="Building triads, coming soon">
+                      <span class="lesson-entry-icon"><i data-lucide="blocks" aria-hidden="true"></i></span>
+                      <span><strong>Building triads</strong><small>Stack thirds into common chord qualities</small></span>
+                      <span class="lesson-availability">Coming soon</span>
+                    </button>
+                    <button id="earTrainingEntryBtn" class="lesson-entry is-available" type="button" data-help="Open the chord ear-training exercise and test a chord by playing it back on your keyboard.">
+                      <span class="lesson-entry-icon"><i data-lucide="headphones" aria-hidden="true"></i></span>
+                      <span><strong>Chord ear training</strong><small>Listen, identify, and play the chord</small></span>
+                      <i data-lucide="chevron-right" aria-hidden="true"></i>
+                    </button>
+                    <button id="piecePracticeEntryBtn" class="lesson-entry is-available" type="button" data-help="Upload a MIDI file and catch each falling note to keep Keyfall moving.">
+                      <span class="lesson-entry-icon"><i data-lucide="music-2" aria-hidden="true"></i></span>
+                      <span><strong>Keyfall</strong><small>Catch a MIDI piece at your own pace</small></span>
+                      <i data-lucide="chevron-right" aria-hidden="true"></i>
+                    </button>
+                  </div>
+                </div>
+
+                <div id="earTrainingView" class="learning-flow-view ear-training-view" hidden inert>
+                  <div class="learning-flow-header">
+                    <button id="earTrainingBackBtn" class="learning-back-button" type="button" aria-label="Back to learning path" data-help="Return to the music-theory learning path.">
+                      <i data-lucide="chevron-left" aria-hidden="true"></i>
+                    </button>
+                    <h2>Chord ear training</h2>
+                  </div>
+                  <p class="ear-training-description">Listen without looking for the answer, then play the same chord using MIDI or the screen keyboard. Different octaves, repeated notes, and inversions are accepted.</p>
+
+                  <div class="ear-training-setting">
+                    <span class="setting-label">Difficulty</span>
+                    <div class="chord-segmented-control four-option-control" role="group" aria-label="Ear training difficulty">
+                      <button class="active" type="button" data-ear-training-difficulty="easy" aria-pressed="true" data-help="Practice root-position major and minor triads in natural-note keys.">Easy</button>
+                      <button type="button" data-ear-training-difficulty="medium" aria-pressed="false" data-help="Add diminished, augmented, suspended chords, chromatic roots, and inversions.">Medium</button>
+                      <button type="button" data-ear-training-difficulty="advanced" aria-pressed="false" data-help="Add seventh chords while retaining all triads, suspended chords, and inversions.">Advanced</button>
+                      <button type="button" data-ear-training-difficulty="custom" aria-pressed="false" data-help="Choose the chord qualities that may appear in an exercise.">Custom</button>
+                    </div>
+                  </div>
+
+                  <div id="earTrainingCustomPanel" class="ear-training-custom-panel is-collapsed" aria-hidden="true" inert>
+                    <span class="setting-label">Allowed chords</span>
+                    <div class="ear-training-quality-grid">
+                      <label><input type="checkbox" value="major" data-ear-training-quality checked><span>Major Triad</span></label>
+                      <label><input type="checkbox" value="minor" data-ear-training-quality checked><span>Minor Triad</span></label>
+                      <label><input type="checkbox" value="augmented" data-ear-training-quality><span>Augmented Triad</span></label>
+                      <label><input type="checkbox" value="diminished" data-ear-training-quality><span>Diminished Triad</span></label>
+                      <label><input type="checkbox" value="dominant7" data-ear-training-quality><span>Dominant 7th</span></label>
+                      <label><input type="checkbox" value="major7" data-ear-training-quality><span>Major 7th</span></label>
+                      <label><input type="checkbox" value="minor7" data-ear-training-quality><span>Minor 7th</span></label>
+                      <label><input type="checkbox" value="minorMajor7" data-ear-training-quality><span>Minor-major 7th</span></label>
+                      <label><input type="checkbox" value="halfDiminished7" data-ear-training-quality><span>Half-dim 7th</span></label>
+                      <label><input type="checkbox" value="diminished7" data-ear-training-quality><span>Diminished 7th</span></label>
+                      <label><input type="checkbox" value="augmented7" data-ear-training-quality><span>Augmented 7th</span></label>
+                      <label><input type="checkbox" value="augmentedMajor7" data-ear-training-quality><span>Augmented-major 7th</span></label>
+                      <label><input type="checkbox" value="sus2" data-ear-training-quality><span>Suspended 2nd</span></label>
+                      <label><input type="checkbox" value="sus4" data-ear-training-quality><span>Suspended 4th</span></label>
+                      <label><input type="checkbox" value="dominant7Sus4" data-ear-training-quality><span>Dominant 7th Sus4</span></label>
+                    </div>
+                    <div class="toggle-setting-row ear-training-inversion-row">
+                      <span>Allow inversions</span>
+                      <button id="earTrainingInversionsToggle" class="toggle-button" type="button" role="switch" aria-checked="true" aria-label="Allow inversions" data-help="Allow customized ear-training questions to use inverted chord voicings. Turn this off for root position only."><span aria-hidden="true"></span></button>
+                    </div>
+                  </div>
+
+                  <div id="earTrainingPrompt" class="ear-training-prompt" data-status="idle" role="status" aria-live="polite">
+                    <i data-lucide="ear" aria-hidden="true"></i>
+                    <span><strong id="earTrainingPromptTitle">Ready to listen</strong><small id="earTrainingPromptText">Choose a difficulty, then start a new chord.</small></span>
+                  </div>
+
+                  <div class="ear-training-actions">
+                    <button id="earTrainingReplayBtn" class="icon-button" type="button" aria-label="Replay chord" title="Replay chord" disabled data-help="Play the current chord question again without revealing its name.">
+                      <i data-lucide="rotate-ccw" aria-hidden="true"></i><span>Replay</span>
+                    </button>
+                    <button id="earTrainingNewBtn" class="ear-training-primary-button" type="button" data-help="Play the first chord, then continue to the next question.">
+                      <i data-lucide="volume-2" aria-hidden="true"></i><span id="earTrainingNewBtnLabel">Play</span>
+                    </button>
+                  </div>
+                  <button id="earTrainingRevealBtn" class="ear-training-reveal-button" type="button" disabled>Show answer</button>
+
+                  <div class="ear-training-score" aria-label="Ear training score">
+                    <span><small>Correct</small><strong id="earTrainingCorrectScore">0 / 0</strong></span>
+                    <span><small>Streak</small><strong id="earTrainingStreakScore">0</strong></span>
+                  </div>
+                </div>
+
+                <div id="piecePracticeView" class="learning-flow-view piece-practice-view" hidden inert>
+                  <div class="learning-flow-header">
+                    <button id="piecePracticeBackBtn" class="learning-back-button" type="button" aria-label="Back to learning path" data-help="Return to the music-theory learning path.">
+                      <i data-lucide="chevron-left" aria-hidden="true"></i>
+                    </button>
+                    <h2>Keyfall</h2>
+                  </div>
+                  <p class="ear-training-description">Catch the falling notes as they reach the keyboard. Keyfall waits at any note you miss and resumes as soon as every required key is held.</p>
+
+                  <label id="piecePracticeDropZone" class="background-upload-button piece-practice-drop-zone" data-help-title="Choose or drop MIDI" data-help="Choose a Standard MIDI File for a guided Keyfall session.">
+                    <i data-lucide="file-music" aria-hidden="true"></i>
+                    <span><strong id="piecePracticeFileName">Choose or drop MIDI</strong><small id="piecePracticeFileMeta">MID or MIDI</small></span>
+                    <input id="piecePracticeFileInput" class="visually-hidden-file" type="file" accept=".mid,.midi,audio/midi,audio/x-midi" />
+                  </label>
+
+                  <div id="piecePracticePrompt" class="ear-training-prompt piece-practice-prompt" data-status="idle" role="status" aria-live="polite">
+                    <i data-lucide="piano" aria-hidden="true"></i>
+                    <span><strong id="piecePracticePromptTitle">Choose a piece</strong><small id="piecePracticePromptText">Load a MIDI file to begin.</small></span>
+                  </div>
+
+                  <div id="piecePracticeControls" class="collapsible-region piece-practice-controls is-collapsed" aria-hidden="true" inert hidden>
+                    <div class="collapsible-region-inner piece-practice-controls-inner">
+                      <div class="piece-practice-transport" role="group" aria-label="Keyfall controls">
+                        <button id="piecePracticePlayBtn" class="ear-training-primary-button" type="button" disabled>
+                          <i data-lucide="play" aria-hidden="true"></i><span>Play</span>
+                        </button>
+                        <button id="piecePracticeStopBtn" class="icon-button" type="button" aria-label="Stop Keyfall" disabled>
+                          <i data-lucide="square" aria-hidden="true"></i>
+                        </button>
+                        <span id="piecePracticeTime" class="autoplay-time">0:00 / 0:00</span>
+                      </div>
+                      <input id="piecePracticeProgress" class="autoplay-progress" type="range" min="0" max="1000" value="0" step="1" disabled aria-label="Keyfall position" />
+                      <div class="toggle-setting-row piece-practice-guide-setting">
+                        <span>Key guides</span>
+                        <button id="piecePracticeKeyGuidesToggle" class="toggle-button" type="button" role="switch" aria-checked="false" aria-label="Key guides" data-help="Mark the keyboard positions of notes currently falling toward the keys."><span aria-hidden="true"></span></button>
+                      </div>
+                      <div class="toggle-setting-row piece-practice-early-jump-setting">
+                        <span>Early-note jump</span>
+                        <button id="piecePracticeEarlyJumpToggle" class="toggle-button" type="button" role="switch" aria-checked="false" aria-label="Early-note jump" data-help="When you play a visible upcoming note early, move Keyfall directly to that note's landing time. This never skips a note while Keyfall is waiting for missing keys."><span aria-hidden="true"></span></button>
+                      </div>
+                      <label class="piece-practice-speed-field">
+                        Speed
+                        <select id="piecePracticeSpeed">
+                          <option value="0.5">0.5x</option>
+                          <option value="0.75">0.75x</option>
+                          <option value="1" selected>1x</option>
+                          <option value="1.25">1.25x</option>
+                          <option value="1.5">1.5x</option>
+                        </select>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            <p class="panel-version">Chord Theory v.0.1</p>
+            <p class="panel-github">Visit my GitHub Page: <a href="https://github.com/TigerPan119" target="_blank" rel="noreferrer">https://github.com/TigerPan119</a></p>
+          </div>
+        </aside>
+      </section>
+
+      <aside id="helpWindow" class="help-window" aria-live="polite">
+        <div class="help-header">
+          <span><i data-lucide="circle-help" aria-hidden="true"></i>Help</span>
+          <button id="helpCloseBtn" class="help-close-button" type="button" aria-label="Close help">
+            <i data-lucide="x" aria-hidden="true"></i>
+          </button>
+        </div>
+        <strong id="helpTitle">Help Window</strong>
+        <p id="helpText">Move the pointer over an element to see what it does.</p>
+      </aside>
+      <button id="helpToggleBtn" class="help-toggle-button" type="button" aria-label="Open help" hidden>
+        <i data-lucide="circle-help" aria-hidden="true"></i>
+      </button>
+      <div id="soundFontDropOverlay" class="drop-overlay" hidden>
+        <div>
+          <i data-lucide="file-music" aria-hidden="true"></i>
+          <strong>Drop SoundFont to load</strong>
+          <span>SF2, SF3, DLS, SFOGG, or SFONT</span>
+        </div>
+      </div>
+    </main>
+
+    <script type="module" src="./src/js/chord-theory/main.js"></script>
+  </body>
+</html>
