@@ -28,6 +28,7 @@ import {
   drawOverlay,
   handleCameraSelectionChange,
   refreshCameraDevices,
+  resetMediaPipe,
   setPerformanceMode,
   setSplitPointMode,
   startCamera,
@@ -54,6 +55,7 @@ configureMidi({
 });
 
 el.emptyStartCameraBtn.addEventListener("click", startCameraAndAudio);
+el.resetMediaPipeBtn.addEventListener("click", resetMediaPipe);
 el.performanceModeBtn.addEventListener("click", () => {
   setPerformanceMode(!state.performanceMode);
 });

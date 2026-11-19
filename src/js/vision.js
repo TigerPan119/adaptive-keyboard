@@ -3,14 +3,12 @@ import { keyboardReady, noteName, noteToX, toViewX, updateSplit, xToNote } from 
 import { setDiagnosticsPaused, setStatus, syncAllSegmentThumbs, updateRangeProgress, updateReadouts } from "./ui.js";
 
 const visionHooks = { onCalibrationNeeded: null };
-const HANDS_URL = "https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/";
 const STARTUP_TIMEOUT_MS = 20_000;
 const INFERENCE_TIMEOUT_MS = 3_000;
 const CAMERA_STALL_MS = 5_000;
 const MAX_RETRIES = 3;
 let cameraSession = null;
-
-class HandTrackingError extends Error {}
+let trackingReset = null;
 
 export function configureVision(hooks) {
   Object.assign(visionHooks, hooks);
@@ -173,18 +171,16 @@ function updateHandAnchor(hand) {
   hand.note = xToNote(anchor.x);
 }
 
-function handleHandsResults(results) {
+function handleHandsResults(hands) {
   syncCanvasSize();
   state.leftHand = null;
   state.rightHand = null;
 
-  const landmarksList = results.multiHandLandmarks || [];
-  const handednessList = results.multiHandedness || [];
-
-  landmarksList.forEach((landmarks, index) => {
+  hands.forEach(({ landmarks, label }) => {
     const anchor = handAnchorPoint(landmarks);
-    let label = handednessList[index]?.label || (anchor.x < el.overlay.width / 2 ? "Left" : "Right");
-    if (state.swapHands) label = label === "Left" ? "Right" : "Left";
+    if (label !== "Left" && label !== "Right") {
+      label = anchor.x < el.overlay.width / 2 ? "Left" : "Right";
+    }
 
     const hand = {
       label,
@@ -202,7 +198,7 @@ function handleHandsResults(results) {
   if (state.diagnosticsPaused) {
     setStatus(el.handStatus, "Tracking active", "ok");
   } else {
-    setStatus(el.handStatus, `${landmarksList.length} hand${landmarksList.length === 1 ? "" : "s"}`, landmarksList.length ? "ok" : "warn");
+    setStatus(el.handStatus, `${hands.length} hand${hands.length === 1 ? "" : "s"}`, hands.length ? "ok" : "warn");
   }
   drawOverlay();
 }
@@ -221,25 +217,6 @@ async function withDeadline(pending, signal, timeoutMs, message) {
   } finally {
     clearTimeout(timer);
     signal.removeEventListener("abort", abort);
-  }
-}
-
-async function loadHands(signal) {
-  if (window.Hands) return window.Hands;
-
-  const script = document.createElement("script");
-  script.src = HANDS_URL + "hands.js";
-  const loaded = new Promise((resolve, reject) => {
-    script.onload = resolve;
-    script.onerror = () => reject(new Error("Could not download MediaPipe Hands."));
-  });
-  document.head.append(script);
-  try {
-    await withDeadline(loaded, signal, STARTUP_TIMEOUT_MS, "MediaPipe download timed out.");
-    if (!window.Hands) throw new Error("MediaPipe Hands did not load.");
-    return window.Hands;
-  } finally {
-    script.remove();
   }
 }
 
@@ -315,13 +292,62 @@ function clearTracking() {
   drawOverlay();
 }
 
-function closeTracker(tracker) {
-  if (!tracker) return;
-  // Hands cannot cancel send(). Let the native graph finish before deleting it.
-  const close = () => tracker.model.close();
-  Promise.resolve(tracker.pending).then(close, close).catch((error) => {
-    console.warn("Could not close the MediaPipe graph.", error);
+function createTracker() {
+  const worker = new Worker(new URL("./hand-tracking-worker.js", import.meta.url), { type: "module" });
+  let pending;
+  let failure;
+
+  function fail(error) {
+    failure = error;
+    pending?.reject(error);
+    pending = null;
+  }
+
+  worker.addEventListener("message", ({ data }) => {
+    if (data.error) {
+      fail(new Error(data.error));
+    } else {
+      pending?.resolve(data.result);
+      pending = null;
+    }
   });
+  worker.addEventListener("error", (event) => {
+    event.preventDefault();
+    fail(new Error(event.message || "Could not load the MediaPipe worker."));
+  });
+  worker.addEventListener("messageerror", () => fail(new Error("Could not read the MediaPipe result.")));
+
+  return {
+    mode: null,
+    request(message, transfer = []) {
+      if (failure) throw failure;
+      if (pending) throw new Error("MediaPipe is already processing a request.");
+      return new Promise((resolve, reject) => {
+        worker.postMessage(message, transfer);
+        pending = { resolve, reject };
+      });
+    },
+    close() {
+      worker.terminate();
+      fail(new DOMException("MediaPipe worker stopped.", "AbortError"));
+    },
+  };
+}
+
+async function detectHands(tracker, mode, timestamp, signal) {
+  const { video } = el;
+  const width = Math.min(video.videoWidth, mode.maxFrameWidth);
+  const frame = await createImageBitmap(video, {
+    resizeWidth: width,
+    resizeHeight: Math.max(1, Math.round(video.videoHeight * width / video.videoWidth)),
+  });
+  try {
+    signal.throwIfAborted();
+    return tracker.request({ type: "detect", frame, timestamp }, [frame]);
+  } finally {
+    // After a successful transfer the Worker owns the bitmap and closes it.
+    frame.close();
+  }
 }
 
 function retryDelay(attempt) {
@@ -341,56 +367,64 @@ async function trackHands(signal) {
       signal.throwIfAborted();
       lastMediaTime = mediaTime;
       const mode = currentTrackingMode();
-      if (now < retryAt || now - lastDetectionAt < mode.minFrameMs) continue;
+      if (failures > MAX_RETRIES || now < retryAt || now - lastDetectionAt < mode.minFrameMs) continue;
       lastDetectionAt = now;
 
       try {
-        if (!tracker) {
-          const Hands = await loadHands(signal);
+        tracker ??= createTracker();
+        if (tracker.mode !== mode) {
+          await withDeadline(tracker.request({ type: "configure", mode }), signal,
+            STARTUP_TIMEOUT_MS, "MediaPipe setup timed out.");
           signal.throwIfAborted();
-          const model = new Hands({ locateFile: (file) => HANDS_URL + file });
-          const instance = { model, mode: null, pending: null, result: null };
-          tracker = instance;
-          model.onResults(({ image, multiHandLandmarks, multiHandedness }) => {
-            image?.close?.();
-            instance.result = { multiHandLandmarks, multiHandedness };
-          });
-        }
-
-        const modeChanged = tracker.mode !== mode;
-        if (modeChanged) {
-          tracker.model.setOptions({
-            maxNumHands: 2,
-            modelComplexity: mode.modelComplexity,
-            minDetectionConfidence: mode.minDetectionConfidence,
-            minTrackingConfidence: mode.minTrackingConfidence,
-          });
           tracker.mode = mode;
         }
 
-        tracker.result = null;
-        tracker.pending = tracker.model.send({ image: el.video });
-        await withDeadline(tracker.pending, signal, modeChanged ? STARTUP_TIMEOUT_MS : INFERENCE_TIMEOUT_MS,
+        const hands = await withDeadline(detectHands(tracker, mode, now, signal), signal, INFERENCE_TIMEOUT_MS,
           "MediaPipe did not finish processing a frame.");
         signal.throwIfAborted();
-        tracker.pending = null;
-        if (!tracker.result) throw new Error("MediaPipe returned no frame result.");
-        handleHandsResults(tracker.result);
+        handleHandsResults(hands);
         failures = 0;
       } catch (error) {
         signal.throwIfAborted();
         console.warn("Hand tracking interrupted.", error);
-        closeTracker(tracker);
+        tracker?.close();
         tracker = null;
         failures += 1;
-        if (failures > MAX_RETRIES) throw new HandTrackingError("Hand tracking stopped.", { cause: error });
         clearTracking();
-        setStatus(el.handStatus, "Restarting hand tracking", "warn");
-        retryAt = performance.now() + retryDelay(failures);
+        if (failures > MAX_RETRIES) {
+          setStatus(el.handStatus, "Tracking stopped. Use Reset MediaPipe.", "bad");
+        } else {
+          setStatus(el.handStatus, "Restarting hand tracking", "warn");
+          retryAt = performance.now() + retryDelay(failures);
+        }
       }
     }
   } finally {
-    closeTracker(tracker);
+    tracker?.close();
+  }
+}
+
+export function resetMediaPipe() {
+  trackingReset?.abort();
+}
+
+async function trackCameraHands(captureSignal) {
+  el.resetMediaPipeBtn.disabled = false;
+  try {
+    while (!captureSignal.aborted) {
+      const reset = new AbortController();
+      trackingReset = reset;
+      try {
+        await trackHands(AbortSignal.any([captureSignal, reset.signal]));
+      } catch (error) {
+        if (captureSignal.aborted || !reset.signal.aborted) throw error;
+        clearTracking();
+        setStatus(el.handStatus, "Restarting hand tracking", "warn");
+      }
+    }
+  } finally {
+    trackingReset = null;
+    el.resetMediaPipeBtn.disabled = true;
   }
 }
 
@@ -471,7 +505,7 @@ async function runCamera(deviceId, signal) {
       setStatus(el.handStatus, "Starting hand tracking", "warn");
       refreshCameraDevices().catch((error) => console.warn("Could not list cameras.", error));
       if (!keyboardReady() && !state.calibrationMode) visionHooks.onCalibrationNeeded?.();
-      await trackHands(capture.signal);
+      await trackCameraHands(capture.signal);
     } catch (error) {
       failure = error;
     } finally {
@@ -483,13 +517,6 @@ async function runCamera(deviceId, signal) {
       clearTracking();
     }
     if (signal.aborted) return;
-
-    if (failure instanceof HandTrackingError) {
-      setStatus(el.cameraStatus, "Camera stopped", "warn");
-      setStatus(el.handStatus, "Hand tracking stopped", "bad");
-      showCameraMessage("Hand tracking could not restart. Start the camera to try again.");
-      return;
-    }
 
     console.warn("Camera interrupted.", failure);
     if (liveSince !== undefined && performance.now() - liveSince >= 2 * CAMERA_STALL_MS) retries = 0;

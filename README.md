@@ -79,6 +79,7 @@ This feature sends playback to an external MIDI instrument. To hear that output,
 
 - Check camera permissions in both your browser and operating system.
 - Close other applications that may be using the camera, and select the correct device under **Camera**.
+- If the camera preview is still moving but hand tracking has stopped, open **Diagnostics** and select **Reset MediaPipe**. The camera, keyboard calibration, and MIDI connection stay active.
 - Improve lighting, reduce hand occlusion, keep the full keyboard visible, and recalibrate.
 
 ### The default SoundFont fails to load

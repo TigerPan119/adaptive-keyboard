@@ -587,6 +587,15 @@ label {
   padding-bottom: 1px;
 }
 
+.diagnostics-content > button {
+  margin: 10px 0 0;
+}
+
+.diagnostics-content > button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
 .diagnostics-panel[data-expanded="true"] .diagnostics-content {
   max-height: var(--diagnostics-height, 600px);
   opacity: 1;

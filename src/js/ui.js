@@ -253,7 +253,6 @@ export function setDiagnosticsPaused(paused) {
   setReadoutText(el.splitReadout, "Paused");
   setReadoutText(el.lastNoteReadout, "Paused");
   setReadoutText(el.routeReadout, "Paused for performance");
-  setStatus(el.handStatus, "Paused", "muted");
   setStatus(el.lastMidiStatus, "Paused", "muted");
 }
 

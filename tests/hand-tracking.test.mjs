@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { setImmediate as flush } from "node:timers/promises";
 import { test } from "node:test";
 
-test("Hand Split recovers failed inference and stalled capture, and discards stale results", async (t) => {
+test("Hand Split replaces stalled workers, resets tracking on demand, and recovers stalled capture", async (t) => {
   t.mock.timers.enable({ apis: ["setTimeout"] });
   t.mock.method(console, "warn", () => {});
 
@@ -56,49 +56,62 @@ test("Hand Split recovers failed inference and stalled capture, and discards sta
     },
   };
 
-  const models = [];
+  const workers = [];
+  const frames = [];
   let failNextFrame;
-  let finishLateSend;
-  let closedImages = 0;
-  class Hands {
-    constructor() { models.push(this); }
-    onResults(handler) { this.handle = handler; }
-    setOptions() {}
-    async send() {
-      const failure = failNextFrame;
-      failNextFrame = null;
-      if (failure === "reject") throw new Error("Synthetic inference failure");
-      if (failure === "hang") {
-        await new Promise((resolve) => {
-          finishLateSend = () => {
-            this.handle({ image: { close() { closedImages++; } }, multiHandLandmarks: [[]] });
-            resolve();
-          };
-        });
+  let sendLateResult;
+  class Worker extends EventTarget {
+    constructor() {
+      super();
+      workers.push(this);
+    }
+    postMessage({ type, frame }, transfer) {
+      assert.equal(this.terminated, undefined);
+      const reply = (data) => this.dispatchEvent(new MessageEvent("message", { data }));
+      if (type === "configure") {
+        queueMicrotask(() => reply({}));
         return;
       }
-      this.handle({ multiHandLandmarks: [] });
+      assert.deepEqual(transfer, [frame]);
+      const failure = failNextFrame;
+      failNextFrame = null;
+      if (failure === "hang") {
+        sendLateResult = () => reply({ result: [{ landmarks: [] }] });
+        return;
+      }
+      queueMicrotask(() => reply(failure === "reject" ? { error: "Synthetic inference failure" } : { result: [] }));
     }
-    async close() { this.closed = true; }
+    terminate() {
+      assert.equal(this.terminated, undefined);
+      this.terminated = true;
+    }
   }
 
   const window = new EventTarget();
-  window.Hands = Hands;
   Object.assign(globalThis, {
     document,
     window,
+    Worker,
+    async createImageBitmap() {
+      const bitmap = { close() { this.closed = true; } };
+      frames.push(bitmap);
+      return bitmap;
+    },
     HTMLMediaElement: { HAVE_CURRENT_DATA: 2 },
   });
   navigator.mediaDevices = mediaDevices;
   t.after(() => {
     delete globalThis.document;
     delete globalThis.window;
+    delete globalThis.Worker;
+    delete globalThis.createImageBitmap;
     delete globalThis.HTMLMediaElement;
     delete navigator.mediaDevices;
   });
 
-  const { startCamera } = await import("../src/js/vision.js");
+  const { resetMediaPipe, startCamera } = await import("../src/js/vision.js");
   const handStatus = document.getElementById("handStatus");
+  const resetButton = document.getElementById("resetMediaPipeBtn");
   let mediaTime = 0;
   async function frame() {
     const callback = frameCallback;
@@ -117,7 +130,7 @@ test("Hand Split recovers failed inference and stalled capture, and discards sta
   failNextFrame = "reject";
   await frame();
   assert.equal(handStatus.textContent, "Restarting hand tracking");
-  assert.equal(models[0].closed, true);
+  assert.equal(workers[0].terminated, true);
   await frame();
   assert.equal(handStatus.textContent, "0 hands");
   assert.equal(streams.length, 1);
@@ -128,14 +141,22 @@ test("Hand Split recovers failed inference and stalled capture, and discards sta
   t.mock.timers.tick(3_000);
   await flush();
   assert.equal(handStatus.textContent, "Restarting hand tracking");
+  assert.equal(workers[1].terminated, true);
   await frame();
-  const recoveredModelCount = models.length;
-  finishLateSend();
+  sendLateResult();
   await flush();
-  assert.equal(models[1].closed, true);
-  assert.equal(models.length, recoveredModelCount);
   assert.equal(handStatus.textContent, "0 hands");
-  assert.equal(closedImages, 1);
+  assert.ok(frames.every((bitmap) => bitmap.closed));
+
+  failNextFrame = "hang";
+  await frame();
+  assert.equal(resetButton.disabled, false);
+  resetMediaPipe();
+  await flush();
+  assert.equal(workers[2].terminated, true);
+  await frame();
+  assert.equal(handStatus.textContent, "0 hands");
+  assert.equal(video.srcObject, streams[0]);
 
   document.hidden = true;
   document.dispatchEvent(new Event("visibilitychange"));
@@ -160,9 +181,14 @@ test("Hand Split recovers failed inference and stalled capture, and discards sta
     failNextFrame = "reject";
     await frame();
   }
-  assert.equal(handStatus.textContent, "Hand tracking stopped");
-  assert.equal(document.getElementById("emptyStartCameraBtn").disabled, false);
-  assert.equal(streams[1].track.readyState, "ended");
+  assert.equal(handStatus.textContent, "Tracking stopped. Use Reset MediaPipe.");
+  assert.equal(video.srcObject, streams[1]);
+  assert.equal(resetButton.disabled, false);
+  resetMediaPipe();
+  await flush();
+  await frame();
+  assert.equal(handStatus.textContent, "0 hands");
+  assert.equal(video.srcObject, streams[1]);
 
   deferNextCamera = true;
   startCamera();
@@ -181,4 +207,5 @@ test("Hand Split recovers failed inference and stalled capture, and discards sta
   await flush();
   assert.equal(streams[3].track.readyState, "ended");
   assert.equal(frameCallback, undefined);
+  assert.equal(resetButton.disabled, true);
 });
