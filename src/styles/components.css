@@ -64,6 +64,12 @@
   margin-top: 12px;
 }
 
+.soundfont-channel {
+  display: grid;
+  min-width: 0;
+  gap: 10px;
+}
+
 .field-note {
   margin: 9px 0 0;
   color: var(--muted);
@@ -76,6 +82,17 @@
   align-items: center;
   gap: 10px;
   margin-top: 12px;
+}
+
+.soundfont-master-row {
+  grid-template-columns: 1fr;
+  gap: 6px;
+}
+
+.soundfont-master-row span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .soundfont-volume-row svg {

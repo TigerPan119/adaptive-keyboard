@@ -11,7 +11,7 @@
     <link rel="stylesheet" href="./src/styles/responsive.css" />
     <script src="https://unpkg.com/lucide@latest"></script>
   </head>
-  <body>
+  <body class="hand-split-page">
     <main class="app-shell">
       <header class="topbar">
         <div>
@@ -119,23 +119,38 @@
                 <input id="soundFontInput" class="visually-hidden-file" type="file" accept=".sf2,.sf3,.dls,.sfogg,.sfont" data-help="Load a local SoundFont file for realistic browser playback. You can click to choose a file or drag an SF2, SF3, DLS, SFOGG, or SFONT file anywhere onto the window." />
               </label>
               <div class="field-grid soundfont-grid">
-                <label>
-                  Left sound
-                  <select id="leftPresetSelect" disabled data-help="Preset used for notes routed to the blue left-hand side.">
-                    <option value="">Load SoundFont first</option>
-                  </select>
-                </label>
-                <label>
-                  Right sound
-                  <select id="rightPresetSelect" disabled data-help="Preset used for notes routed to the red right-hand side.">
-                    <option value="">Load SoundFont first</option>
-                  </select>
-                </label>
+                <div class="soundfont-channel">
+                  <label>
+                    Left sound
+                    <select id="leftPresetSelect" disabled data-help="Preset used for notes routed to the blue left-hand side.">
+                      <option value="">Load SoundFont first</option>
+                    </select>
+                  </label>
+                  <label>
+                    Left volume
+                    <input id="leftVolumeInput" type="range" min="0" max="100" value="100"
+                      data-help="Adjust the volume of notes already playing or routed to the left sound." />
+                  </label>
+                </div>
+                <div class="soundfont-channel">
+                  <label>
+                    Right sound
+                    <select id="rightPresetSelect" disabled data-help="Preset used for notes routed to the red right-hand side.">
+                      <option value="">Load SoundFont first</option>
+                    </select>
+                  </label>
+                  <label>
+                    Right volume
+                    <input id="rightVolumeInput" type="range" min="0" max="100" value="100"
+                      data-help="Adjust the volume of notes already playing or routed to the right sound." />
+                  </label>
+                </div>
               </div>
               <p id="soundFontStatus" class="field-note">Loading default SoundFont...</p>
-              <label class="soundfont-volume-row" aria-label="SoundFont volume">
-                <i data-lucide="volume-2" aria-hidden="true"></i>
-                <input id="soundFontVolumeInput" type="range" min="0" max="8" step="0.1" value="3" data-help="Adjust the overall SoundFont playback volume. This does not change MIDI velocity or split routing." />
+              <label class="soundfont-volume-row soundfont-master-row">
+                <span><i data-lucide="volume-2" aria-hidden="true"></i>Master volume</span>
+                <input id="soundFontVolumeInput" type="range" min="0" max="8" step="0.1" value="3"
+                  data-help="Adjust the overall SoundFont playback volume." />
               </label>
             </section>
 
@@ -264,6 +279,11 @@
         </aside>
       </section>
 
+      <button id="sustainPedalBtn" class="sustain-pedal" type="button" aria-labelledby="sustainPedalLabel"
+        aria-describedby="sustainPedalHint">
+        <span id="sustainPedalLabel">Sustain pedal</span>
+        <small id="sustainPedalHint">Press and hold</small>
+      </button>
       <aside id="helpWindow" class="help-window" aria-live="polite">
         <div class="help-header">
           <span><i data-lucide="circle-help" aria-hidden="true"></i>Help</span>

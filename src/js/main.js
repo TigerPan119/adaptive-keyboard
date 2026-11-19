@@ -1,5 +1,5 @@
 import { DEFAULT_HELP, el, state } from "./core.js";
-import { applySelectedPresets, loadDefaultSoundFont, loadSoundFontFile, startAudio } from "./audio.js";
+import { applySelectedPresets, loadDefaultSoundFont, loadSoundFontFile, setChannelVolume, setVirtualSustain, startAudio } from "./audio.js";
 import { autoDetectKeyboardEdges, handleOverlayClick, setCalibrationMode, startAutoCalibration } from "./calibration.js";
 import { beginMidiLearn, configureMidi, connectMidiInput, initMidi } from "./midi.js";
 import { noteName } from "./keyboard.js";
@@ -35,12 +35,59 @@ import {
   syncSplitModeButtons,
 } from "./vision.js";
 
-function startCameraAndAudio() {
+function resumeAudio() {
   startAudio().catch((error) => {
     console.warn("Audio could not be started automatically.", error);
     setStatus(el.audioStatus, "Audio blocked", "bad");
   });
-  startCamera();
+}
+
+function bindSustainPedal(button) {
+  let pointerId = null;
+  const heldKeys = new Set();
+  const syncPedal = () => {
+    const down = pointerId !== null || heldKeys.size > 0;
+    if (down && !state.virtualPedalDown) resumeAudio();
+    setVirtualSustain(down);
+  };
+  const releasePointer = (event) => {
+    if (pointerId !== event.pointerId) return;
+    pointerId = null;
+    syncPedal();
+  };
+  const releaseAll = () => {
+    const captured = pointerId;
+    pointerId = null;
+    heldKeys.clear();
+    if (captured !== null && button.hasPointerCapture(captured)) button.releasePointerCapture(captured);
+    syncPedal();
+  };
+
+  button.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0 || pointerId !== null) return;
+    button.setPointerCapture(event.pointerId);
+    pointerId = event.pointerId;
+    syncPedal();
+  });
+  for (const type of ["pointerup", "pointercancel", "lostpointercapture"]) {
+    button.addEventListener(type, releasePointer);
+  }
+  for (const type of ["keydown", "keyup"]) {
+    button.addEventListener(type, (event) => {
+      if (event.key !== " " && event.key !== "Enter") return;
+      event.preventDefault();
+      const key = event.code || event.key;
+      if (type === "keydown" && !event.repeat) heldKeys.add(key);
+      if (type === "keyup") heldKeys.delete(key);
+      syncPedal();
+    });
+  }
+  button.addEventListener("blur", releaseAll);
+  window.addEventListener("blur", releaseAll);
+  window.addEventListener("pagehide", releaseAll);
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) releaseAll();
+  });
 }
 
 configureVision({ onCalibrationNeeded: startAutoCalibration });
@@ -54,7 +101,11 @@ configureMidi({
   },
 });
 
-el.emptyStartCameraBtn.addEventListener("click", startCameraAndAudio);
+el.emptyStartCameraBtn.addEventListener("click", () => {
+  resumeAudio();
+  startCamera();
+});
+bindSustainPedal(el.sustainPedalBtn);
 el.resetMediaPipeBtn.addEventListener("click", resetMediaPipe);
 el.performanceModeBtn.addEventListener("click", () => {
   setPerformanceMode(!state.performanceMode);
@@ -127,6 +178,14 @@ el.highNoteInput.addEventListener("change", () => {
 });
 el.smoothingInput.addEventListener("input", () => updateRangeProgress(el.smoothingInput));
 el.soundFontVolumeInput.addEventListener("input", () => setSoundFontVolume(el.soundFontVolumeInput.value));
+[el.leftVolumeInput, el.rightVolumeInput].forEach((input, channel) => {
+  const syncVolume = () => {
+    setChannelVolume(channel, input.value);
+    updateRangeProgress(input);
+  };
+  input.addEventListener("input", syncVolume);
+  syncVolume();
+});
 el.controlPanel.addEventListener("scroll", updateControlScrollHints);
 window.addEventListener("wheel", handleGlobalWheel, { passive: false });
 window.addEventListener("resize", () => {

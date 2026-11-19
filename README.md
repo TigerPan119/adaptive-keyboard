@@ -37,6 +37,8 @@ Use the navigation at the top of either page to switch between **Hand Split** an
 
 - **Split anchor → Palm / Thumbs:** choose which hand landmarks determine the split. Palm is generally more stable; Thumbs follows the reach of your thumbs more closely.
 - **Performance mode:** reduce tracking and interface workload if playback or visuals feel sluggish.
+- **Sustain pedal:** press and hold the floating button, then release it to let sustained notes decay. With the button focused, Space or Enter works the same way.
+- **Left volume / Right volume:** balance the two sounds independently. **Master volume** controls the combined output.
 - **Diagnostics:** inspect hand tracking, MIDI input, audio, and note routing.
 
 The camera tracks hand positions; actual notes come from MIDI input. Until hands are tracked, the app uses the midpoint of the configured keyboard range as a fallback split. Occlusion, poor lighting, and crossed hands can affect tracking.

@@ -11,6 +11,10 @@
     overflow: visible;
   }
 
+  .hand-split-page .app-shell {
+    padding-bottom: calc(82px + env(safe-area-inset-bottom));
+  }
+
   .workspace {
     grid-template-columns: 1fr;
   }
@@ -59,6 +63,11 @@
 @media (max-width: 560px) {
   .app-shell {
     padding: 14px;
+  }
+
+  .hand-split-page .help-window {
+    width: min(340px, calc(100vw - 182px));
+    bottom: max(18px, env(safe-area-inset-bottom));
   }
 
   .button-row,

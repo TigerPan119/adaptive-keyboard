@@ -79,6 +79,7 @@ function applyPresetToChannel(channel, select) {
   state.sfSynth.controllerChange(channel, 0, Math.floor(bank / 128));
   state.sfSynth.controllerChange(channel, 32, bank % 128);
   state.sfSynth.programChange(channel, selectedProgram(select));
+  state.sfSynth.controllerChange(channel, 7, state.channelVolumes[channel]);
   state.sfSynth.controllerChange(channel, 64, state.sustainValue);
 }
 
@@ -86,6 +87,12 @@ export function applySelectedPresets() {
   if (!state.sfSynth || !state.soundFontLoaded) return;
   applyPresetToChannel(0, el.leftPresetSelect);
   applyPresetToChannel(1, el.rightPresetSelect);
+}
+
+export function setChannelVolume(channel, value) {
+  const volume = Math.round(clamp(Number(value) || 0, 0, 100));
+  state.channelVolumes[channel] = volume;
+  if (state.sfSynth && state.soundFontLoaded) state.sfSynth.controllerChange(channel, 7, volume);
 }
 
 export async function loadSoundFontFile(file) {
@@ -171,30 +178,46 @@ export function releaseNote(note) {
   state.activeNotes.delete(note);
 }
 
-export function handleSustainPedal(value) {
-  state.sustainValue = clamp(value, 0, 127);
+function updateSustain(force = false) {
+  const value = state.virtualPedalDown ? 127 : state.midiSustainValue;
+  if (!force && value === state.sustainValue) return;
+  state.sustainValue = value;
+  const down = value >= 64;
+  el.sustainPedalBtn.dataset.active = String(down);
 
   if (state.sfSynth && state.soundFontLoaded) {
-    state.sfSynth.controllerChange(0, 64, state.sustainValue);
-    state.sfSynth.controllerChange(1, 64, state.sustainValue);
+    state.sfSynth.controllerChange(0, 64, value);
+    state.sfSynth.controllerChange(1, 64, value);
   }
 
   if (!state.diagnosticsPaused) {
-    el.routeReadout.textContent = state.sustainValue >= 64 ? "Sustain pedal down" : "Sustain pedal up";
+    el.routeReadout.textContent = down ? "Sustain pedal down" : "Sustain pedal up";
   }
 }
 
-export function handleAllNotesOff(controller, value) {
-  if (!state.sfSynth || !state.soundFontLoaded) return;
+export function handleSustainPedal(value) {
+  state.midiSustainValue = clamp(value, 0, 127);
+  updateSustain();
+}
 
-  state.sfSynth.controllerChange(0, controller, value);
-  state.sfSynth.controllerChange(1, controller, value);
-  for (const [note, active] of state.activeNotes) {
-    if (Number.isFinite(active.channel)) {
-      state.sfSynth.noteOff(active.channel, note);
+export function setVirtualSustain(down) {
+  state.virtualPedalDown = down;
+  updateSustain();
+}
+
+export function handleAllNotesOff(controller, value) {
+  if (state.sfSynth && state.soundFontLoaded) {
+    state.sfSynth.controllerChange(0, controller, value);
+    state.sfSynth.controllerChange(1, controller, value);
+    for (const [note, active] of state.activeNotes) {
+      if (Number.isFinite(active.channel)) state.sfSynth.noteOff(active.channel, note);
     }
   }
   state.activeNotes.clear();
-  if (controller === 121) state.sustainValue = 0;
+  if (controller === 121) {
+    state.midiSustainValue = 0;
+    updateSustain(true);
+    state.channelVolumes.forEach((volume, channel) => setChannelVolume(channel, volume));
+  }
   if (!state.diagnosticsPaused) el.routeReadout.textContent = "All notes off";
 }

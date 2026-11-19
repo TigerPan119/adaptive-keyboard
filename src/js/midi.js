@@ -93,10 +93,11 @@ function handleMidiMessage(event) {
 
 export function refreshMidiInputs() {
   if (!state.midiAccess) return;
-  const inputs = [...state.midiAccess.inputs.values()];
+  const inputs = [...state.midiAccess.inputs.values()].filter((input) => input.state !== "disconnected");
   el.midiInputSelect.innerHTML = "";
 
   if (!inputs.length) {
+    connectMidiInput("");
     const option = document.createElement("option");
     option.value = "";
     option.textContent = "No MIDI inputs found";
@@ -112,16 +113,22 @@ export function refreshMidiInputs() {
     el.midiInputSelect.append(option);
   });
 
-  connectMidiInput(inputs[0].id);
+  const selectedId = state.selectedMidiInput?.id;
+  connectMidiInput(inputs.some((input) => input.id === selectedId) ? selectedId : inputs[0].id);
   setStatus(el.midiStatus, `${inputs.length} MIDI input${inputs.length === 1 ? "" : "s"}`, "ok");
 }
 
 export function connectMidiInput(id) {
   if (!state.midiAccess) return;
-  if (state.selectedMidiInput) state.selectedMidiInput.onmidimessage = null;
-  state.selectedMidiInput = state.midiAccess.inputs.get(id);
-  if (state.selectedMidiInput) {
-    state.selectedMidiInput.onmidimessage = handleMidiMessage;
+  const next = state.midiAccess.inputs.get(id) ?? null;
+  if (state.selectedMidiInput && state.selectedMidiInput !== next) {
+    state.selectedMidiInput.onmidimessage = null;
+    handleAllNotesOff(120, 0);
+    handleSustainPedal(0);
+  }
+  state.selectedMidiInput = next;
+  if (next) {
+    next.onmidimessage = handleMidiMessage;
     el.midiInputSelect.value = id;
   }
 }

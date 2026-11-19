@@ -181,9 +181,11 @@ export function handleGlobalWheel(event) {
 }
 
 export function updateHelpAlignment() {
-  const left = el.stagePanel?.getBoundingClientRect().left;
-  if (!Number.isFinite(left)) return;
+  const stage = el.stagePanel?.getBoundingClientRect();
+  if (!stage) return;
+  const { left, right } = stage;
   document.documentElement.style.setProperty("--help-left", `${Math.max(18, Math.round(left))}px`);
+  document.documentElement.style.setProperty("--sustain-right", `${Math.max(18, Math.round(window.innerWidth - right))}px`);
 }
 
 export function updateRangeProgress(input) {
