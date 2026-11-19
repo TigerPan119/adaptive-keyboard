@@ -8,6 +8,7 @@ export const el = {
   calibrationPromptTitle: document.getElementById("calibrationPromptTitle"),
   calibrationPromptText: document.getElementById("calibrationPromptText"),
   emptyState: document.getElementById("emptyState"),
+  cameraMessage: document.getElementById("cameraMessage"),
   cameraStatus: document.getElementById("cameraStatus"),
   handStatus: document.getElementById("handStatus"),
   midiStatus: document.getElementById("midiStatus"),
@@ -57,16 +58,11 @@ export const el = {
 export const ctx = el.overlay.getContext("2d");
 
 export const state = {
-  handsModel: null,
   cameraRunning: false,
-  cameraStream: null,
   selectedCameraId: "",
   mirrorCamera: true,
   swapHands: true,
   performanceMode: false,
-  detectLoopId: 0,
-  lastDetectionAt: 0,
-  lastOverlayAt: 0,
   splitPointMode: "thumb",
   calibrationMode: null,
   calibrationPoints: [],

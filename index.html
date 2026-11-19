@@ -9,7 +9,6 @@
     <link rel="stylesheet" href="./src/styles/components.css" />
     <link rel="stylesheet" href="./src/styles/overlays.css" />
     <link rel="stylesheet" href="./src/styles/responsive.css" />
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
   </head>
   <body>
@@ -77,7 +76,7 @@
             <div id="emptyState" class="empty-state">
               <i data-lucide="camera" aria-hidden="true"></i>
               <strong>Frame the full keyboard</strong>
-              <span>Make sure the camera can capture the entire keyboard before calibration.</span>
+              <span id="cameraMessage" role="status">Make sure the camera can capture the entire keyboard before calibration.</span>
               <button id="emptyStartCameraBtn" class="empty-start-button" type="button" data-help="Start the webcam feed and begin hand tracking. Chrome or Edge will ask for camera permission.">Start camera</button>
             </div>
           </div>

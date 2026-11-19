@@ -34,24 +34,12 @@ import {
   syncSplitModeButtons,
 } from "./vision.js";
 
-async function startCameraAndAudio() {
-  if (el.emptyStartCameraBtn.disabled) return;
-
-  const previousText = el.emptyStartCameraBtn.textContent;
-  el.emptyStartCameraBtn.disabled = true;
-  el.emptyStartCameraBtn.textContent = "Start camera";
-
-  try {
-    const audioPromise = startAudio().catch((error) => {
-      console.warn("Audio could not be started automatically.", error);
-      setStatus(el.audioStatus, "Audio blocked", "bad");
-    });
-    await startCamera();
-    await audioPromise;
-  } finally {
-    el.emptyStartCameraBtn.disabled = false;
-    el.emptyStartCameraBtn.textContent = previousText;
-  }
+function startCameraAndAudio() {
+  startAudio().catch((error) => {
+    console.warn("Audio could not be started automatically.", error);
+    setStatus(el.audioStatus, "Audio blocked", "bad");
+  });
+  startCamera();
 }
 
 configureVision({ onCalibrationNeeded: startAutoCalibration });
@@ -159,7 +147,6 @@ document.querySelectorAll("[data-help]").forEach((node) => {
   node.addEventListener("blur", reset);
 });
 
-setStatus(el.handStatus, window.Hands ? "MediaPipe loaded" : "MediaPipe loading", window.Hands ? "ok" : "warn");
 window.lucide?.createIcons?.();
 if (el.diagnosticsPanel) {
   el.diagnosticsPanel.dataset.expanded = el.diagnosticsPanel.open ? "true" : "false";
