@@ -37,7 +37,7 @@ Use the navigation at the top of either page to switch between **Hand Split** an
 
 - **Split anchor → Palm / Thumbs:** choose which hand landmarks determine the split. Palm is generally more stable; Thumbs follows the reach of your thumbs more closely.
 - **Performance mode:** reduce tracking and interface workload if playback or visuals feel sluggish.
-- **Sustain pedal:** press and hold the floating button, then release it to let sustained notes decay. With the button focused, Space or Enter works the same way.
+- **Sustain pedal:** press and hold the transparent area at the lower right of the camera column, or at the lower right of the screen on mobile. Release to let sustained notes decay. With the control focused, Space or Enter works the same way.
 - **Left volume / Right volume:** balance the two sounds independently. **Master volume** controls the combined output.
 - **Diagnostics:** inspect hand tracking, MIDI input, audio, and note routing.
 

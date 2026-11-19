@@ -3,35 +3,24 @@
   right: var(--sustain-right, 18px);
   bottom: max(18px, env(safe-area-inset-bottom));
   z-index: 20;
-  display: grid;
-  justify-items: center;
-  gap: 3px;
-  min-width: 134px;
-  min-height: 52px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  width: 134px;
+  height: 52px;
   border-radius: 18px;
-  background: rgba(44, 44, 46, 0.9);
-  box-shadow: var(--shadow);
-  padding: 8px 14px;
-  backdrop-filter: blur(24px);
+  padding: 0;
+  cursor: inherit;
   touch-action: none;
   user-select: none;
   -webkit-touch-callout: none;
 }
 
-.sustain-pedal small {
-  color: var(--muted);
-  font-size: 11px;
+.sustain-pedal,
+.sustain-pedal:hover {
+  border: 0;
+  background: transparent;
 }
 
-.sustain-pedal[data-active="true"] {
-  border-color: var(--yellow);
-  background: var(--yellow);
-  color: #15130b;
-}
-
-.sustain-pedal[data-active="true"] small {
-  color: inherit;
+.sustain-pedal:active {
+  transform: none;
 }
 
 .help-window {
