@@ -7,6 +7,8 @@ const STARTUP_TIMEOUT_MS = 20_000;
 const INFERENCE_TIMEOUT_MS = 3_000;
 const CAMERA_STALL_MS = 5_000;
 const MAX_RETRIES = 3;
+const CPU_MAX_FRAME_WIDTH = 960;
+const FRAME_INTERVAL_TOLERANCE_MS = 2;
 let cameraSession = null;
 let trackingReset = null;
 
@@ -220,68 +222,93 @@ async function withDeadline(pending, signal, timeoutMs, message) {
   }
 }
 
-// Watch for fresh camera frames even when the video element still looks ready.
-function nextVideoFrame(signal, lastMediaTime) {
+// Keep only the most recent camera frame timestamp while inference is busy.
+function watchVideoFrames(signal) {
   signal.throwIfAborted();
   const { video } = el;
   const usesVideoCallback = typeof video.requestVideoFrameCallback === "function";
+  let handle = null;
+  let timer;
+  let pending;
+  let latest;
+  let lastMediaTime;
 
-  return new Promise((resolve, reject) => {
-    let frame = null;
-    let timer;
+  function cancelFrame() {
+    if (handle === null) return;
+    if (usesVideoCallback) video.cancelVideoFrameCallback(handle);
+    else cancelAnimationFrame(handle);
+    handle = null;
+  }
 
-    function cancelFrame() {
-      if (frame === null) return;
-      if (usesVideoCallback) video.cancelVideoFrameCallback(frame);
-      else cancelAnimationFrame(frame);
-      frame = null;
-    }
+  function stopWatching(error) {
+    cancelFrame();
+    clearTimeout(timer);
+    signal.removeEventListener("abort", onAbort);
+    document.removeEventListener("visibilitychange", onVisibilityChange);
+    pending?.reject(error);
+    pending = null;
+    latest = null;
+  }
 
-    function cleanup() {
-      cancelFrame();
-      clearTimeout(timer);
-      signal.removeEventListener("abort", onAbort);
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-    }
+  function onAbort() {
+    stopWatching(signal.reason);
+  }
 
-    function onAbort() {
-      cleanup();
-      reject(signal.reason);
-    }
+  function onFrame(now, metadata) {
+    handle = null;
+    if (document.hidden) return;
 
-    function onFrame(now, metadata) {
-      frame = null;
-      if (document.hidden) return;
-
-      const mediaTime = metadata?.mediaTime ?? video.currentTime;
-      if (mediaTime !== lastMediaTime && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA &&
-          video.videoWidth && video.videoHeight) {
-        cleanup();
-        resolve({ now, mediaTime });
-      } else {
-        queueFrame();
+    const mediaTime = metadata?.mediaTime ?? video.currentTime;
+    if (mediaTime !== lastMediaTime && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA &&
+        video.videoWidth && video.videoHeight) {
+      lastMediaTime = mediaTime;
+      latest = { now, mediaTime };
+      if (pending) {
+        clearTimeout(timer);
+        pending.resolve(latest);
+        pending = null;
+        latest = null;
       }
     }
+    queueFrame();
+  }
 
-    function queueFrame() {
-      frame = usesVideoCallback ? video.requestVideoFrameCallback(onFrame) : requestAnimationFrame(onFrame);
+  function queueFrame() {
+    handle = usesVideoCallback ? video.requestVideoFrameCallback(onFrame) : requestAnimationFrame(onFrame);
+  }
+
+  function startWatchdog() {
+    clearTimeout(timer);
+    if (pending && !document.hidden) {
+      timer = setTimeout(() => stopWatching(new Error("The camera stopped delivering frames.")), CAMERA_STALL_MS);
     }
+  }
 
-    function onVisibilityChange() {
-      cancelFrame();
-      clearTimeout(timer);
-      if (document.hidden) return;
-      timer = setTimeout(() => {
-        cleanup();
-        reject(new Error("The camera stopped delivering frames."));
-      }, CAMERA_STALL_MS);
-      queueFrame();
-    }
+  function onVisibilityChange() {
+    latest = null;
+    cancelFrame();
+    if (!document.hidden) queueFrame();
+    startWatchdog();
+  }
 
-    signal.addEventListener("abort", onAbort, { once: true });
-    document.addEventListener("visibilitychange", onVisibilityChange);
-    onVisibilityChange();
-  });
+  signal.addEventListener("abort", onAbort, { once: true });
+  document.addEventListener("visibilitychange", onVisibilityChange);
+  onVisibilityChange();
+  return {
+    next() {
+      signal.throwIfAborted();
+      if (latest) {
+        const frame = latest;
+        latest = null;
+        return frame;
+      }
+      return new Promise((resolve, reject) => {
+        pending = { resolve, reject };
+        startWatchdog();
+      });
+    },
+    close: stopWatching,
+  };
 }
 
 function clearTracking() {
@@ -319,6 +346,7 @@ function createTracker() {
 
   return {
     mode: null,
+    bitmapOnly: false,
     request(message, transfer = []) {
       if (failure) throw failure;
       if (pending) throw new Error("MediaPipe is already processing a request.");
@@ -334,20 +362,35 @@ function createTracker() {
   };
 }
 
-async function detectHands(tracker, mode, timestamp, signal) {
-  const { video } = el;
-  const width = Math.min(video.videoWidth, mode.maxFrameWidth);
-  const frame = await createImageBitmap(video, {
-    resizeWidth: width,
-    resizeHeight: Math.max(1, Math.round(video.videoHeight * width / video.videoWidth)),
-  });
+function transferFrame(tracker, frame, timestamp, signal) {
   try {
     signal.throwIfAborted();
     return tracker.request({ type: "detect", frame, timestamp }, [frame]);
   } finally {
-    // After a successful transfer the Worker owns the bitmap and closes it.
+    // After a successful transfer the Worker owns the frame and closes it.
     frame.close();
   }
+}
+
+async function detectHands(tracker, maxFrameWidth, timestamp, signal) {
+  const { video } = el;
+  const width = Math.min(video.videoWidth, maxFrameWidth);
+  if (width === video.videoWidth && !tracker.bitmapOnly && typeof VideoFrame === "function") {
+    try {
+      const frame = new VideoFrame(video, { timestamp: Math.round(timestamp * 1000) });
+      return await transferFrame(tracker, frame, timestamp, signal);
+    } catch (error) {
+      if (!["DataCloneError", "NotSupportedError", "TypeError"].includes(error.name)) throw error;
+      tracker.bitmapOnly = true;
+    }
+  }
+
+  signal.throwIfAborted();
+  const frame = await createImageBitmap(video, {
+    resizeWidth: width,
+    resizeHeight: Math.max(1, Math.round(video.videoHeight * width / video.videoWidth)),
+  });
+  return transferFrame(tracker, frame, timestamp, signal);
 }
 
 function retryDelay(attempt) {
@@ -355,31 +398,36 @@ function retryDelay(attempt) {
 }
 
 async function trackHands(signal) {
+  const frames = watchVideoFrames(signal);
   let tracker;
-  let lastMediaTime;
-  let lastDetectionAt = -Infinity;
+  let lastDetectionMediaMs = -Infinity;
   let retryAt = 0;
   let failures = 0;
+  let gpuFailures = 0;
+  let delegate = "GPU";
 
   try {
     while (!signal.aborted) {
-      const { now, mediaTime } = await nextVideoFrame(signal, lastMediaTime);
+      const { now, mediaTime } = await frames.next();
       signal.throwIfAborted();
-      lastMediaTime = mediaTime;
       const mode = currentTrackingMode();
-      if (failures > MAX_RETRIES || now < retryAt || now - lastDetectionAt < mode.minFrameMs) continue;
-      lastDetectionAt = now;
+      const mediaMs = mediaTime * 1000;
+      const elapsed = mediaMs - lastDetectionMediaMs;
+      const tooSoon = elapsed >= 0 && elapsed + FRAME_INTERVAL_TOLERANCE_MS < mode.minFrameMs;
+      if (failures > MAX_RETRIES || now < retryAt || tooSoon) continue;
+      lastDetectionMediaMs = mediaMs;
 
       try {
         tracker ??= createTracker();
         if (tracker.mode !== mode) {
-          await withDeadline(tracker.request({ type: "configure", mode }), signal,
+          await withDeadline(tracker.request({ type: "configure", mode, delegate }), signal,
             STARTUP_TIMEOUT_MS, "MediaPipe setup timed out.");
           signal.throwIfAborted();
           tracker.mode = mode;
         }
 
-        const hands = await withDeadline(detectHands(tracker, mode, now, signal), signal, INFERENCE_TIMEOUT_MS,
+        const maxFrameWidth = delegate === "GPU" ? mode.maxFrameWidth : Math.min(mode.maxFrameWidth, CPU_MAX_FRAME_WIDTH);
+        const hands = await withDeadline(detectHands(tracker, maxFrameWidth, now, signal), signal, INFERENCE_TIMEOUT_MS,
           "MediaPipe did not finish processing a frame.");
         signal.throwIfAborted();
         handleHandsResults(hands);
@@ -387,6 +435,10 @@ async function trackHands(signal) {
       } catch (error) {
         signal.throwIfAborted();
         console.warn("Hand tracking interrupted.", error);
+        if (delegate === "GPU" && tracker) {
+          gpuFailures += 1;
+          if (!tracker.mode || gpuFailures >= 2) delegate = "CPU";
+        }
         tracker?.close();
         tracker = null;
         failures += 1;
@@ -400,6 +452,7 @@ async function trackHands(signal) {
       }
     }
   } finally {
+    frames.close();
     tracker?.close();
   }
 }
@@ -442,7 +495,7 @@ async function openCamera(deviceId, signal) {
     video: {
       width: { ideal: mode.width },
       height: { ideal: mode.height },
-      frameRate: { ideal: state.performanceMode ? 30 : 60 },
+      frameRate: { ideal: 60 },
       ...(deviceId ? { deviceId: { exact: deviceId } } : {}),
     },
     audio: false,

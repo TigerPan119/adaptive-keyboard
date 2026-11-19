@@ -5,7 +5,7 @@ const MODEL_URL = "https://storage.googleapis.com/mediapipe-models/hand_landmark
 let landmarker;
 
 self.addEventListener("message", async ({ data }) => {
-  const { type, mode, frame, timestamp } = data;
+  const { type, mode, delegate, frame, timestamp } = data;
   try {
     if (type === "configure") {
       const options = {
@@ -19,7 +19,7 @@ self.addEventListener("message", async ({ data }) => {
         const files = await FilesetResolver.forVisionTasks(WASM_URL, true);
         landmarker = await HandLandmarker.createFromOptions(files, {
           ...options,
-          baseOptions: { modelAssetPath: MODEL_URL, delegate: "CPU" },
+          baseOptions: { modelAssetPath: MODEL_URL, delegate },
           canvas: new OffscreenCanvas(1, 1),
           runningMode: "VIDEO",
           numHands: 2,
